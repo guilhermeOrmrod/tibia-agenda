@@ -400,3 +400,18 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   25%       { transform: translateX(-6px); }
   75%       { transform: translateX(6px); }
 }
+
+/* ── Horários ocupados no card de serviceiro ── */
+.serviceiros-list li {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.horarios-ocupados {
+  width: 100%;
+  font-size: 11px;
+  color: rgba(224, 90, 58, 0.75);
+  font-family: 'Crimson Text', serif;
+  letter-spacing: 0.3px;
+  padding-bottom: 4px;
+}

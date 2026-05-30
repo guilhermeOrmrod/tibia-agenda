@@ -51,26 +51,51 @@ const dataFiltroEl = document.getElementById("dataFiltro");
 const hoje = new Date().toISOString().split("T")[0];
 dataFiltroEl.value = hoje;
 
+function formatarHora(isoString) {
+  const d = new Date(isoString);
+  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
 function verificarDisponibilidade(dataSelecionada) {
   const eventos = carregarEventos();
 
-  // Para cada li de serviceiro na página
   document.querySelectorAll(".serviceiros-list li").forEach(li => {
     const nome  = li.dataset.nome;
     const badge = li.querySelector(".badge");
 
-    // Verifica se o serviceiro tem agendamento nessa data
-    const ocupado = eventos.some(ev => {
-      const dataEvento = ev.inicio.split("T")[0];
-      return ev.serviceiro === nome && dataEvento === dataSelecionada;
-    });
+    // Filtra agendamentos do serviceiro nessa data, ordenados por início
+    const agendamentosDia = eventos
+      .filter(ev => ev.serviceiro === nome && ev.inicio.split("T")[0] === dataSelecionada)
+      .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
 
-    if (ocupado) {
-      badge.textContent = "Ocupado";
-      badge.className   = "badge ocupado";
-    } else {
+    if (agendamentosDia.length === 0) {
       badge.textContent = "Disponível";
       badge.className   = "badge disponivel";
+      badge.title       = "";
+    } else {
+      // Monta string com todos os horários ocupados
+      const horarios = agendamentosDia
+        .map(ev => formatarHora(ev.inicio) + "–" + formatarHora(ev.fim))
+        .join(", ");
+
+      badge.textContent = "Ocupado";
+      badge.className   = "badge ocupado";
+      badge.title       = "Horários: " + horarios;
+
+      // Adiciona span com os horários visível abaixo do badge
+      let spanHorario = li.querySelector(".horarios-ocupados");
+      if (!spanHorario) {
+        spanHorario = document.createElement("span");
+        spanHorario.className = "horarios-ocupados";
+        li.appendChild(spanHorario);
+      }
+      spanHorario.textContent = horarios;
+    }
+
+    // Remove span de horários se ficou disponível
+    if (agendamentosDia.length === 0) {
+      const spanExistente = li.querySelector(".horarios-ocupados");
+      if (spanExistente) spanExistente.remove();
     }
   });
 }
