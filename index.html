@@ -35,7 +35,6 @@
         <button class="nav-btn" data-tab="precos">Preços</button>
         <button class="nav-btn" data-tab="contatos">Contatos</button>
         <button class="nav-btn" data-tab="pagamentos">Pagamentos</button>
-        <button class="nav-btn nav-btn-admin" data-tab="admin" id="btnNavAdmin" style="display:none">⚙️ Admin</button>
       </nav>
       <div id="loginBox">
         <div id="loginArea">
@@ -187,8 +186,8 @@
           <span class="preco-icon">💰</span>
           <div>
             <h3>Valor mínimo</h3>
-            <p id="precoNormal">R$ 20,00 / hora em dias normais</p>
-            <p id="precoEvento">R$ 25,00 / hora em dias de evento</p>
+            <p>R$ 20,00 / hora em dias normais</p>
+            <p>R$ 25,00 / hora em dias de evento</p>
           </div>
         </div>
         <div class="preco-obs">
@@ -317,88 +316,6 @@
         <h4 class="col-titulo recusado">❌ Recusados</h4>
         <div id="listaRecusados" class="pagamentos-lista"></div>
       </div>
-    </div>
-  </section>
-
-  <!-- ABA: Admin -->
-  <section id="tab-admin" class="tab-content">
-    <div class="admin-painel">
-      <h2 class="admin-titulo">⚙️ Painel Administrativo</h2>
-
-      <!-- Senhas -->
-      <div class="admin-card">
-        <h3>🔑 Senhas de Acesso</h3>
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label>Senha Admin</label>
-            <div class="admin-input-row">
-              <input type="password" id="cfgSenhaAdmin" placeholder="Nova senha admin" autocomplete="off">
-              <button class="btn-admin-salvar" id="btnSalvarSenhaAdmin">Salvar</button>
-            </div>
-          </div>
-          <div class="admin-field">
-            <label>Senha Cliente</label>
-            <div class="admin-input-row">
-              <input type="password" id="cfgSenhaCliente" placeholder="Nova senha cliente" autocomplete="off">
-              <button class="btn-admin-salvar" id="btnSalvarSenhaCliente">Salvar</button>
-            </div>
-          </div>
-        </div>
-        <p class="admin-obs">⚠️ Após salvar a nova senha, faça logout e entre com ela para confirmar.</p>
-      </div>
-
-      <!-- Preços -->
-      <div class="admin-card">
-        <h3>💰 Tabela de Preços</h3>
-        <div class="admin-grid">
-          <div class="admin-field">
-            <label>Valor normal (R$/hora)</label>
-            <div class="admin-input-row">
-              <input type="number" id="cfgPrecoNormal" placeholder="Ex: 20" step="0.01" min="0">
-              <button class="btn-admin-salvar" id="btnSalvarPrecos">Salvar</button>
-            </div>
-          </div>
-          <div class="admin-field">
-            <label>Valor evento (R$/hora)</label>
-            <input type="number" id="cfgPrecoEvento" placeholder="Ex: 25" step="0.01" min="0">
-          </div>
-          <div class="admin-field" style="grid-column: 1/-1">
-            <label>Observação</label>
-            <input type="text" id="cfgPrecoObs" placeholder="Ex: Valores podem ser combinados com o serviceiro.">
-          </div>
-        </div>
-      </div>
-
-      <!-- Hunts -->
-      <div class="admin-card">
-        <h3>🗺️ Hunts Disponíveis</h3>
-        <div id="listaHunts" class="admin-tags"></div>
-        <div class="admin-input-row" style="margin-top:12px">
-          <input type="text" id="cfgNovaHunt" placeholder="Nome da nova hunt">
-          <button class="btn-admin-salvar" id="btnAdicionarHunt">+ Adicionar</button>
-        </div>
-      </div>
-
-      <!-- Serviceiros -->
-      <div class="admin-card">
-        <h3>⚔️ Serviceiros por Vocação</h3>
-        <div class="admin-field" style="margin-bottom:12px">
-          <label>Vocação</label>
-          <select id="cfgVocacaoSel">
-            <option value="Master Sorcerer">Master Sorcerer</option>
-            <option value="Elder Druid">Elder Druid</option>
-            <option value="Elite Knight">Elite Knight</option>
-            <option value="Royal Paladin">Royal Paladin</option>
-            <option value="Exalted Monk">Exalted Monk</option>
-          </select>
-        </div>
-        <div id="listaServiceirosAdmin" class="admin-tags"></div>
-        <div class="admin-input-row" style="margin-top:12px">
-          <input type="text" id="cfgNovoServiceiro" placeholder="Nome do novo serviceiro">
-          <button class="btn-admin-salvar" id="btnAdicionarServiceiro">+ Adicionar</button>
-        </div>
-      </div>
-
     </div>
   </section>
 
