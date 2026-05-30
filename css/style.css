@@ -1383,3 +1383,25 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   letter-spacing: 0.3px;
   padding-left: 2px;
 }
+
+/* ── Contatos bloqueados para não logados ── */
+.contatos-bloqueado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 14px;
+  text-align: center;
+}
+
+.bloqueado-icon {
+  font-size: 42px;
+}
+
+.contatos-bloqueado p {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: rgba(201,168,76,0.65);
+  letter-spacing: 1px;
+}

@@ -229,7 +229,7 @@ async function carregarCalendario() {
 carregarCalendario();
 
 // ── Autenticação ──────────────────────────
-const SENHA_ADMIN   = "adminFatal1289";
+const SENHA_ADMIN   = "admin123";
 const SENHA_CLIENTE = "cliente123";
 let tipoUsuario = null;
 
@@ -371,7 +371,20 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
 // CONTATOS (Supabase)
 // =========================================
 async function renderizarContatos() {
-  const container = document.getElementById("tabelaContatos");
+  const container  = document.getElementById("tabelaContatos");
+  const logado     = tipoUsuario !== null;
+  const isAdmin    = tipoUsuario === "admin";
+
+  // Usuário não logado vê aviso de acesso restrito
+  if (!logado) {
+    container.innerHTML = `
+      <div class="contatos-bloqueado">
+        <span class="bloqueado-icon">🔒</span>
+        <p>Faça login para ver os contatos dos serviceiros.</p>
+      </div>`;
+    return;
+  }
+
   container.innerHTML = `<div class="contato-row header">
     <span>Nome</span><span>WhatsApp</span><span>Pix</span><span>Discord</span><span></span>
   </div>`;
@@ -381,7 +394,6 @@ async function renderizarContatos() {
     contatos.forEach(c => {
       const row = document.createElement("div");
       row.className = "contato-row";
-      const isAdmin = tipoUsuario === "admin";
       row.innerHTML = `
         <span class="contato-nome">${c.nome}</span>
         <span class="contato-info">${c.whats ? `<a href="https://wa.me/55${c.whats.replace(/[^0-9]/g,'')}" target="_blank">📱 ${c.whats}</a>` : "<em>—</em>"}</span>
