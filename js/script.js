@@ -218,27 +218,39 @@ const SENHA_ADMIN   = "admin123";
 const SENHA_CLIENTE = "cliente123";
 let tipoUsuario = null;
 
+// Aplica o estado visual de login na tela
+function aplicarSessao(tipo) {
+  tipoUsuario = tipo;
+  const isAdmin = tipo === "admin";
+  document.getElementById("formAgendamento").style.display    = "block";
+  document.getElementById("loginArea").style.display          = "none";
+  document.getElementById("userArea").style.display           = "flex";
+  document.getElementById("usuarioLogado").textContent        = isAdmin ? "⚔️ ADMIN" : "🗡️ CLIENTE";
+  document.getElementById("btnEditarContatos").style.display  = isAdmin ? "inline-block" : "none";
+  if (isAdmin) {
+    renderizarContatos();
+    renderizarPagamentos();
+  }
+}
+
+// Restaura sessão ao recarregar a página
+const sessaoSalva = sessionStorage.getItem("fatal_session");
+if (sessaoSalva) {
+  aplicarSessao(sessaoSalva);
+}
+
 document.getElementById("loginBtn").addEventListener("click", () => {
   const senha = document.getElementById("senha").value;
 
   if (senha === SENHA_ADMIN) {
-    tipoUsuario = "admin";
+    sessionStorage.setItem("fatal_session", "admin");
+    aplicarSessao("admin");
     mostrarMensagem("✅ Logado como ADMIN", "sucesso");
-    document.getElementById("formAgendamento").style.display = "block";
-    document.getElementById("loginArea").style.display       = "none";
-    document.getElementById("userArea").style.display        = "flex";
-    document.getElementById("usuarioLogado").textContent     = "⚔️ ADMIN";
-    document.getElementById("btnEditarContatos").style.display = "inline-block";
-    renderizarContatos();
-    renderizarPagamentos();
 
   } else if (senha === SENHA_CLIENTE) {
-    tipoUsuario = "cliente";
+    sessionStorage.setItem("fatal_session", "cliente");
+    aplicarSessao("cliente");
     mostrarMensagem("✅ Logado como CLIENTE", "sucesso");
-    document.getElementById("formAgendamento").style.display = "block";
-    document.getElementById("loginArea").style.display       = "none";
-    document.getElementById("userArea").style.display        = "flex";
-    document.getElementById("usuarioLogado").textContent     = "🗡️ CLIENTE";
 
   } else {
     mostrarMensagem("⚠️ Senha incorreta!", "erro");
@@ -247,10 +259,11 @@ document.getElementById("loginBtn").addEventListener("click", () => {
 
 document.getElementById("logoutBtn").addEventListener("click", () => {
   tipoUsuario = null;
-  document.getElementById("formAgendamento").style.display = "none";
-  document.getElementById("loginArea").style.display       = "flex";
-  document.getElementById("userArea").style.display        = "none";
-  document.getElementById("senha").value                   = "";
+  sessionStorage.removeItem("fatal_session");
+  document.getElementById("formAgendamento").style.display   = "none";
+  document.getElementById("loginArea").style.display         = "flex";
+  document.getElementById("userArea").style.display          = "none";
+  document.getElementById("senha").value                     = "";
   document.getElementById("btnEditarContatos").style.display = "none";
   renderizarContatos();
   renderizarPagamentos();
