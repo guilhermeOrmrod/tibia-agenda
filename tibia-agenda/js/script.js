@@ -81,7 +81,7 @@ carregarEventos().forEach(ev => {
 // ── Autenticação ──────────────────────────
 // Atenção: senhas no front-end são visíveis
 // no DevTools. Ok para uso pessoal entre amigos.
-const SENHA_ADMIN   = "admin123";
+const SENHA_ADMIN   = "adminFatal1289";
 const SENHA_CLIENTE = "cliente123";
 let tipoUsuario = null;
 
