@@ -445,6 +445,20 @@ document.getElementById("btnEditarContatos").addEventListener("click", renderiza
 // PAGAMENTOS (Supabase + Upload)
 // =========================================
 async function renderizarPagamentos() {
+  const listasEl = ["listaAnalise","listaAprovados","listaRecusados"];
+
+  // Usuário não logado vê aviso de acesso restrito
+  if (!tipoUsuario) {
+    listasEl.forEach(id => {
+      document.getElementById(id).innerHTML = `
+        <div class="contatos-bloqueado">
+          <span class="bloqueado-icon">🔒</span>
+          <p>Faça login para ver os pagamentos.</p>
+        </div>`;
+    });
+    return;
+  }
+
   try {
     const pags      = await supaGet("pagamentos", "order=criado_em.desc");
     const analise   = pags.filter(p => p.status === "analise");
