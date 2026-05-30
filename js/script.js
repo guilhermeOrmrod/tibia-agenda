@@ -152,15 +152,27 @@ vocacaoEl.addEventListener("change", () => {
 
 // ── Hunt customizado ──────────────────────────
 document.getElementById("hunt").addEventListener("change", () => {
-  const huntCustom = document.getElementById("huntCustom");
+  const huntCustom  = document.getElementById("huntCustom");
+  const huntValorSalvo = huntCustom.value; // salva o que foi digitado
   if (document.getElementById("hunt").value === "custom") {
     huntCustom.style.display = "block";
     huntCustom.required = true;
+    huntCustom.value    = huntValorSalvo; // restaura o que foi digitado
     huntCustom.focus();
   } else {
     huntCustom.style.display = "none";
     huntCustom.required = false;
-    huntCustom.value = "";
+    // Não limpa o valor — só esconde, preserva para caso o user volte
+  }
+});
+
+// Garante que o campo customizado reaparece se hunt=custom ao trocar vocação
+document.getElementById("vocacao").addEventListener("change", () => {
+  const hunt = document.getElementById("hunt");
+  const huntCustom = document.getElementById("huntCustom");
+  if (hunt.value === "custom") {
+    huntCustom.style.display = "block";
+    huntCustom.required = true;
   }
 });
 
@@ -230,7 +242,7 @@ async function carregarCalendario() {
 carregarCalendario();
 
 // ── Autenticação ──────────────────────────
-const SENHA_ADMIN   = "adminFatal1289";
+const SENHA_ADMIN   = "admin123";
 const SENHA_CLIENTE = "cliente123";
 let tipoUsuario = null;
 
@@ -323,7 +335,7 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   const nomeRegex = /^[a-zA-ZÀ-ÿ ]+$/;
   if (!nomeRegex.test(nome_cliente)) {
     document.getElementById("nome").classList.add("campo-invalido");
-    mostrarMensagem("⚠️ Nome inválido — use apenas letras e espaços, sem números ou símbolos.", "erro");
+    mostrarMensagem("⚠️ Nome inválido! Use apenas seu nick real (ex: Fear Popstar). Sem números ou símbolos.", "erro");
     return;
   }
 
@@ -513,6 +525,14 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
     mostrarMensagem("⚠️ Preencha todos os campos e anexe o comprovante.", "erro"); return;
   }
 
+  // Valida nome: só letras (incluindo acentos) e espaços
+  const nomeRegexPg = /^[a-zA-ZÀ-ÿ ]+$/;
+  if (!nomeRegexPg.test(nome)) {
+    document.getElementById("pgNome").classList.add("campo-invalido");
+    mostrarMensagem("⚠️ Nome inválido! Use apenas seu nick real (ex: Fear Popstar). Sem números ou símbolos.", "erro");
+    return;
+  }
+
   mostrarMensagem("⏳ Enviando comprovante...", "sucesso");
 
   // Upload do arquivo
@@ -533,6 +553,12 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
   ["pgNome","pgServiceiro","pgData","pgValor","pgObs"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("pgArquivo").value = "";
 });
+
+// Limpa highlight de erro ao corrigir campo de pagamento
+const pgNomeEl = document.getElementById("pgNome");
+if (pgNomeEl) {
+  pgNomeEl.addEventListener("input", () => pgNomeEl.classList.remove("campo-invalido"));
+}
 
 // Preview do arquivo antes de enviar
 document.getElementById("pgArquivo").addEventListener("change", (e) => {
