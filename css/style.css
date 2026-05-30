@@ -57,15 +57,15 @@ body {
 }
 
 /* Cobre marca d'água do canto inferior direito */
-#video-bg::after {
-  content: '';
-  position: absolute;
+#watermark-cover {
+  position: fixed;
   bottom: 0;
   right: 0;
-  width: 120px;
-  height: 50px;
+  width: 140px;
+  height: 60px;
   background: #0a0a0f;
-  z-index: 2;
+  z-index: 9999;
+  pointer-events: none;
 }
 
 /* ── Header ── */
