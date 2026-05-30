@@ -145,6 +145,18 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
 
 calendar.render();
 
+// Corrige bug de tamanho ao trocar de monitor ou redimensionar janela
+window.addEventListener("resize", () => {
+  calendar.updateSize();
+});
+
+// Força recálculo ao trocar de aba (Serviceiros <-> Agenda)
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    setTimeout(() => calendar.updateSize(), 50);
+  });
+});
+
 // Carrega eventos salvos
 carregarEventos().forEach(ev => {
   calendar.addEvent({
