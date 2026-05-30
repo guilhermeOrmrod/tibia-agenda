@@ -231,6 +231,8 @@ carregarCalendario();
 // ── Autenticação ──────────────────────────
 const SENHA_ADMIN   = "admin123";
 const SENHA_CLIENTE = "cliente123";
+let SENHA_ADMIN_DIN   = SENHA_ADMIN;
+let SENHA_CLIENTE_DIN = SENHA_CLIENTE;
 let tipoUsuario = null;
 
 // Aplica o estado visual de login na tela
@@ -252,17 +254,25 @@ function aplicarSessao(tipo) {
 const sessaoSalva = sessionStorage.getItem("fatal_session");
 if (sessaoSalva) {
   aplicarSessao(sessaoSalva);
+  if (sessaoSalva === "admin") {
+    document.getElementById("btnNavAdmin").style.display = "inline-block";
+    carregarPainelAdmin();
+  }
 }
 
 document.getElementById("loginBtn").addEventListener("click", () => {
   const senha = document.getElementById("senha").value;
 
-  if (senha === SENHA_ADMIN) {
+  // Carrega senhas do Supabase se disponível
+  const senhaAdminAtual   = SENHA_ADMIN_DIN;
+  const senhaClienteAtual = SENHA_CLIENTE_DIN;
+
+  if (senha === senhaAdminAtual) {
     sessionStorage.setItem("fatal_session", "admin");
     aplicarSessao("admin");
     mostrarMensagem("✅ Logado como ADMIN", "sucesso");
 
-  } else if (senha === SENHA_CLIENTE) {
+  } else if (senha === senhaClienteAtual) {
     sessionStorage.setItem("fatal_session", "cliente");
     aplicarSessao("cliente");
     mostrarMensagem("✅ Logado como CLIENTE", "sucesso");
@@ -280,6 +290,7 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   document.getElementById("userArea").style.display          = "none";
   document.getElementById("senha").value                     = "";
   document.getElementById("btnEditarContatos").style.display = "none";
+  document.getElementById("btnNavAdmin").style.display = "none";
   renderizarContatos();
   renderizarPagamentos();
   mostrarMensagem("Saiu da conta.", "sucesso");
@@ -573,6 +584,195 @@ if (pgNomeEl) {
   pgNomeEl.addEventListener("input", () => pgNomeEl.classList.remove("campo-invalido"));
 }
 
+// =========================================
+// PAINEL ADMIN
+// =========================================
+let cfgAtual = { hunts: [], serviceiros: {}, precos: {}, senhas: {} };
+
+async function carregarPainelAdmin() {
+  try {
+    const rows = await supaGet("configuracoes", "");
+    rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
+    renderizarPainelAdmin();
+  } catch(e) { console.error("Erro ao carregar config:", e); }
+}
+
+function renderizarPainelAdmin() {
+  // Preços
+  document.getElementById("cfgPrecoNormal").value = cfgAtual.precos?.normal || "";
+  document.getElementById("cfgPrecoEvento").value = cfgAtual.precos?.evento || "";
+  document.getElementById("cfgPrecoObs").value    = cfgAtual.precos?.obs    || "";
+
+  // Hunts
+  renderizarTagsHunts();
+
+  // Serviceiros
+  renderizarTagsServiceiros();
+}
+
+function renderizarTagsHunts() {
+  const container = document.getElementById("listaHunts");
+  container.innerHTML = "";
+  const hunts = cfgAtual.hunts || [];
+  hunts.forEach((h, i) => {
+    const tag = document.createElement("span");
+    tag.className = "admin-tag";
+    tag.innerHTML = `${h} <button data-idx="${i}" title="Remover">×</button>`;
+    tag.querySelector("button").addEventListener("click", async () => {
+      cfgAtual.hunts.splice(i, 1);
+      await salvarConfig("hunts", cfgAtual.hunts);
+      renderizarTagsHunts();
+      atualizarSelectHunts();
+      mostrarMensagem("🗑️ Hunt removida!", "sucesso");
+    });
+    container.appendChild(tag);
+  });
+}
+
+function renderizarTagsServiceiros() {
+  const vocacao   = document.getElementById("cfgVocacaoSel").value;
+  const container = document.getElementById("listaServiceirosAdmin");
+  container.innerHTML = "";
+  const lista = cfgAtual.serviceiros?.[vocacao] || [];
+  lista.forEach((s, i) => {
+    const tag = document.createElement("span");
+    tag.className = "admin-tag";
+    tag.innerHTML = `${s} <button data-idx="${i}" title="Remover">×</button>`;
+    tag.querySelector("button").addEventListener("click", async () => {
+      cfgAtual.serviceiros[vocacao].splice(i, 1);
+      await salvarConfig("serviceiros", cfgAtual.serviceiros);
+      renderizarTagsServiceiros();
+      atualizarServiceiros();
+      mostrarMensagem("🗑️ Serviceiro removido!", "sucesso");
+    });
+    container.appendChild(tag);
+  });
+}
+
+async function salvarConfig(chave, valor) {
+  await fetch(`${SUPA_URL}/rest/v1/configuracoes?chave=eq.${chave}`, {
+    method: "PATCH",
+    headers: { ...HEADERS, "Prefer": "return=minimal" },
+    body: JSON.stringify({ valor, atualizado_em: new Date().toISOString() })
+  });
+}
+
+function atualizarSelectHunts() {
+  const huntEl = document.getElementById("hunt");
+  const atual  = huntEl.value;
+  huntEl.innerHTML = '<option value="">Hunt</option>';
+  (cfgAtual.hunts || []).forEach(h => {
+    const opt = document.createElement("option");
+    opt.value = opt.textContent = h;
+    huntEl.appendChild(opt);
+  });
+  const optCustom = document.createElement("option");
+  optCustom.value = "custom";
+  optCustom.textContent = "De sua escolha...";
+  huntEl.appendChild(optCustom);
+  huntEl.value = atual;
+}
+
+function atualizarServiceiros() {
+  Object.assign(SERVICEIROS, cfgAtual.serviceiros || {});
+
+  // Atualiza os cards de disponibilidade (lista de serviceiros na aba Serviceiros)
+  document.querySelectorAll(".serviceiros-list").forEach(ul => {
+    const vocacao = ul.dataset.vocacao;
+    const lista   = SERVICEIROS[vocacao] || [];
+
+    // Recria os <li> com base na lista atualizada
+    ul.innerHTML = "";
+    lista.forEach(nome => {
+      const li = document.createElement("li");
+      li.dataset.nome = nome;
+      li.innerHTML = `<span class="nome">${nome}</span><span class="badge verificando">verificando...</span>`;
+      ul.appendChild(li);
+    });
+  });
+
+  // Atualiza o select de serviceiro se vocação já estiver selecionada
+  const vocacao = document.getElementById("vocacao").value;
+  if (vocacao) {
+    servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
+    (SERVICEIROS[vocacao] || []).forEach(nome => {
+      const opt = document.createElement("option");
+      opt.value = opt.textContent = nome;
+      servicEireEl.appendChild(opt);
+    });
+  }
+
+  // Reavalia disponibilidade com a lista atualizada
+  verificarDisponibilidade(dataFiltroEl.value);
+}
+
+// Botão: salvar preços
+document.getElementById("btnSalvarPrecos").addEventListener("click", async () => {
+  const normal = parseFloat(document.getElementById("cfgPrecoNormal").value);
+  const evento = parseFloat(document.getElementById("cfgPrecoEvento").value);
+  const obs    = document.getElementById("cfgPrecoObs").value.trim();
+  if (!normal || !evento) { mostrarMensagem("⚠️ Preencha os dois valores.", "erro"); return; }
+  cfgAtual.precos = { normal, evento, obs };
+  await salvarConfig("precos", cfgAtual.precos);
+  // Atualiza a aba de preços visualmente
+  document.getElementById("precoNormal").textContent = `R$ ${normal.toFixed(2).replace(".",",")} / hora em dias normais`;
+  document.getElementById("precoEvento").textContent = `R$ ${evento.toFixed(2).replace(".",",")} / hora em dias de evento`;
+  mostrarMensagem("✅ Preços atualizados!", "sucesso");
+});
+
+// Botão: salvar senha admin
+document.getElementById("btnSalvarSenhaAdmin").addEventListener("click", async () => {
+  const nova = document.getElementById("cfgSenhaAdmin").value.trim();
+  if (!nova || nova.length < 6) { mostrarMensagem("⚠️ Senha deve ter ao menos 6 caracteres.", "erro"); return; }
+  cfgAtual.senhas = { ...cfgAtual.senhas, admin: nova };
+  await salvarConfig("senhas", cfgAtual.senhas);
+  SENHA_ADMIN_DIN = nova;
+  document.getElementById("cfgSenhaAdmin").value = "";
+  mostrarMensagem("✅ Senha admin atualizada! Faça logout para confirmar.", "sucesso");
+});
+
+// Botão: salvar senha cliente
+document.getElementById("btnSalvarSenhaCliente").addEventListener("click", async () => {
+  const nova = document.getElementById("cfgSenhaCliente").value.trim();
+  if (!nova || nova.length < 6) { mostrarMensagem("⚠️ Senha deve ter ao menos 6 caracteres.", "erro"); return; }
+  cfgAtual.senhas = { ...cfgAtual.senhas, cliente: nova };
+  await salvarConfig("senhas", cfgAtual.senhas);
+  SENHA_CLIENTE_DIN = nova;
+  document.getElementById("cfgSenhaCliente").value = "";
+  mostrarMensagem("✅ Senha cliente atualizada!", "sucesso");
+});
+
+// Botão: adicionar hunt
+document.getElementById("btnAdicionarHunt").addEventListener("click", async () => {
+  const nova = document.getElementById("cfgNovaHunt").value.trim();
+  if (!nova) { mostrarMensagem("⚠️ Digite o nome da hunt.", "erro"); return; }
+  if (cfgAtual.hunts.includes(nova)) { mostrarMensagem("⚠️ Hunt já existe.", "erro"); return; }
+  cfgAtual.hunts.push(nova);
+  await salvarConfig("hunts", cfgAtual.hunts);
+  document.getElementById("cfgNovaHunt").value = "";
+  renderizarTagsHunts();
+  atualizarSelectHunts();
+  mostrarMensagem("✅ Hunt adicionada!", "sucesso");
+});
+
+// Botão: adicionar serviceiro
+document.getElementById("btnAdicionarServiceiro").addEventListener("click", async () => {
+  const novo    = document.getElementById("cfgNovoServiceiro").value.trim();
+  const vocacao = document.getElementById("cfgVocacaoSel").value;
+  if (!novo) { mostrarMensagem("⚠️ Digite o nome do serviceiro.", "erro"); return; }
+  if (!cfgAtual.serviceiros[vocacao]) cfgAtual.serviceiros[vocacao] = [];
+  if (cfgAtual.serviceiros[vocacao].includes(novo)) { mostrarMensagem("⚠️ Serviceiro já existe nesta vocação.", "erro"); return; }
+  cfgAtual.serviceiros[vocacao].push(novo);
+  await salvarConfig("serviceiros", cfgAtual.serviceiros);
+  document.getElementById("cfgNovoServiceiro").value = "";
+  renderizarTagsServiceiros();
+  atualizarServiceiros();
+  mostrarMensagem("✅ Serviceiro adicionado!", "sucesso");
+});
+
+// Troca de vocação no painel admin
+document.getElementById("cfgVocacaoSel").addEventListener("change", renderizarTagsServiceiros);
+
 // Preview do arquivo antes de enviar
 document.getElementById("pgArquivo").addEventListener("change", (e) => {
   const file    = e.target.files[0];
@@ -588,6 +788,28 @@ document.getElementById("pgArquivo").addEventListener("change", (e) => {
   }
 });
 
-// Inicializa
+// ── Inicializa ────────────────────────────
+// Carrega configurações do Supabase ao abrir a página
+(async () => {
+  try {
+    const rows = await supaGet("configuracoes", "");
+    rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
+    // Aplica senhas dinâmicas
+    if (cfgAtual.senhas?.admin)   SENHA_ADMIN_DIN   = cfgAtual.senhas.admin;
+    if (cfgAtual.senhas?.cliente) SENHA_CLIENTE_DIN = cfgAtual.senhas.cliente;
+    // Aplica hunts no select
+    atualizarSelectHunts();
+    // Aplica serviceiros
+    atualizarServiceiros();
+    // Aplica preços na aba de preços
+    if (cfgAtual.precos?.normal) {
+      document.getElementById("precoNormal").textContent =
+        `R$ ${parseFloat(cfgAtual.precos.normal).toFixed(2).replace(".",",")} / hora em dias normais`;
+      document.getElementById("precoEvento").textContent =
+        `R$ ${parseFloat(cfgAtual.precos.evento).toFixed(2).replace(".",",")} / hora em dias de evento`;
+    }
+  } catch(e) { console.warn("Configurações não carregadas:", e); }
+})();
+
 renderizarContatos();
 renderizarPagamentos();
