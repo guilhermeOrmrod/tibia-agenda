@@ -208,6 +208,9 @@ document.getElementById("loginBtn").addEventListener("click", () => {
     document.getElementById("loginArea").style.display       = "none";
     document.getElementById("userArea").style.display        = "flex";
     document.getElementById("usuarioLogado").textContent     = "⚔️ ADMIN";
+    document.getElementById("btnEditarContatos").style.display = "inline-block";
+    renderizarContatos();
+    renderizarPagamentos();
 
   } else if (senha === SENHA_CLIENTE) {
     tipoUsuario = "cliente";
@@ -228,6 +231,9 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   document.getElementById("loginArea").style.display       = "flex";
   document.getElementById("userArea").style.display        = "none";
   document.getElementById("senha").value                   = "";
+  document.getElementById("btnEditarContatos").style.display = "none";
+  renderizarContatos();
+  renderizarPagamentos();
   mostrarMensagem("Saiu da conta.", "sucesso");
 });
 
@@ -330,3 +336,222 @@ document.getElementById("formAgendamento").addEventListener("submit", (e) => {
   e.target.reset();
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
 });
+
+
+// =========================================
+// CONTATOS
+// =========================================
+const STORAGE_CONTATOS = "rubinot_contatos";
+
+const CONTATOS_PADRAO = [
+  { nome: "Fear",    vocacao: "Master Sorcerer", whats: "",  pix: "", discord: "" },
+  { nome: "Panic",   vocacao: "Master Sorcerer", whats: "",  pix: "", discord: "" },
+  { nome: "Cassinho",vocacao: "Multi",            whats: "",  pix: "", discord: "" },
+  { nome: "Murilo",  vocacao: "Multi",            whats: "",  pix: "", discord: "" },
+  { nome: "Paradox", vocacao: "Elite Knight",     whats: "",  pix: "", discord: "" },
+  { nome: "Raikess", vocacao: "Multi",            whats: "",  pix: "", discord: "" },
+  { nome: "Accid",   vocacao: "Royal Paladin",    whats: "",  pix: "", discord: "" }
+];
+
+function carregarContatos() {
+  const dados = localStorage.getItem(STORAGE_CONTATOS);
+  return dados ? JSON.parse(dados) : JSON.parse(JSON.stringify(CONTATOS_PADRAO));
+}
+
+function salvarContatos(contatos) {
+  localStorage.setItem(STORAGE_CONTATOS, JSON.stringify(contatos));
+}
+
+function renderizarContatos() {
+  const contatos = carregarContatos();
+  const container = document.getElementById("tabelaContatos");
+
+  container.innerHTML = `
+    <div class="contato-row header">
+      <span>Nome</span>
+      <span>WhatsApp</span>
+      <span>Pix</span>
+      <span>Discord</span>
+      <span></span>
+    </div>
+  `;
+
+  contatos.forEach(c => {
+    const row = document.createElement("div");
+    row.className = "contato-row";
+    const isAdmin = tipoUsuario === "admin";
+
+    row.innerHTML = `
+      <span class="contato-nome">${c.nome}</span>
+      <span class="contato-info">${c.whats ? `<a href="https://wa.me/55${c.whats.replace(/[^0-9]/g,'')}" target="_blank">📱 ${c.whats}</a>` : '<em>—</em>'}</span>
+      <span class="contato-info">${c.pix || '<em>—</em>'}</span>
+      <span class="contato-info">${c.discord || '<em>—</em>'}</span>
+      <span>${isAdmin ? `<button class="btn-edit-contato" data-nome="${c.nome}">✏️</button>` : ''}</span>
+    `;
+    container.appendChild(row);
+  });
+
+  // Botões de edição
+  document.querySelectorAll(".btn-edit-contato").forEach(btn => {
+    btn.addEventListener("click", () => abrirModalContato(btn.dataset.nome));
+  });
+}
+
+function abrirModalContato(nome) {
+  const contatos = carregarContatos();
+  const c = contatos.find(x => x.nome === nome);
+  if (!c) return;
+  document.getElementById("editNome").value    = c.nome;
+  document.getElementById("editWhats").value   = c.whats    || "";
+  document.getElementById("editPix").value     = c.pix      || "";
+  document.getElementById("editDiscord").value = c.discord  || "";
+  document.getElementById("modalContato").style.display = "flex";
+}
+
+document.getElementById("btnFecharModal").addEventListener("click", () => {
+  document.getElementById("modalContato").style.display = "none";
+});
+
+document.getElementById("btnSalvarContato").addEventListener("click", () => {
+  const nome    = document.getElementById("editNome").value;
+  const whats   = document.getElementById("editWhats").value.trim();
+  const pix     = document.getElementById("editPix").value.trim();
+  const discord = document.getElementById("editDiscord").value.trim();
+  const contatos = carregarContatos();
+  const idx = contatos.findIndex(x => x.nome === nome);
+  if (idx !== -1) {
+    contatos[idx].whats   = whats;
+    contatos[idx].pix     = pix;
+    contatos[idx].discord = discord;
+    salvarContatos(contatos);
+  }
+  document.getElementById("modalContato").style.display = "none";
+  renderizarContatos();
+  mostrarMensagem("✅ Contato de " + nome + " atualizado!", "sucesso");
+});
+
+// Fecha modal clicando fora
+document.getElementById("modalContato").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("modalContato")) {
+    document.getElementById("modalContato").style.display = "none";
+  }
+});
+
+// Botão admin editar contatos
+document.getElementById("btnEditarContatos").addEventListener("click", () => {
+  renderizarContatos();
+});
+
+// =========================================
+// PAGAMENTOS
+// =========================================
+const STORAGE_PAGAMENTOS = "rubinot_pagamentos";
+
+function carregarPagamentos() {
+  const dados = localStorage.getItem(STORAGE_PAGAMENTOS);
+  return dados ? JSON.parse(dados) : [];
+}
+
+function salvarPagamentos(pags) {
+  localStorage.setItem(STORAGE_PAGAMENTOS, JSON.stringify(pags));
+}
+
+function renderizarPagamentos() {
+  const pags = carregarPagamentos();
+  const analise   = pags.filter(p => p.status === "analise");
+  const aprovados = pags.filter(p => p.status === "aprovado");
+  const recusados = pags.filter(p => p.status === "recusado");
+
+  function cardHTML(p) {
+    const isAdmin = tipoUsuario === "admin";
+    const acoes = (isAdmin && p.status === "analise") ? `
+      <div class="pg-acoes">
+        <button class="btn-aprovar" data-id="${p.id}">✅ Aprovar</button>
+        <button class="btn-recusar" data-id="${p.id}">❌ Recusar</button>
+      </div>` : "";
+    const btnExcluir = (isAdmin) ? `<button class="btn-recusar" style="margin-top:6px;width:100%" data-excluir="${p.id}">🗑️ Excluir</button>` : "";
+    return `
+      <div class="pagamento-card">
+        <div class="pg-nome">${p.nome}</div>
+        <div class="pg-detail">Serviceiro: ${p.serviceiro}</div>
+        <div class="pg-detail">Data: ${p.data} | Pix: ${p.comprovante}</div>
+        ${p.obs ? `<div class="pg-detail">Obs: ${p.obs}</div>` : ""}
+        <div class="pg-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div>
+        ${acoes}
+        ${btnExcluir}
+      </div>`;
+  }
+
+  const listaAnalise   = document.getElementById("listaAnalise");
+  const listaAprovados = document.getElementById("listaAprovados");
+  const listaRecusados = document.getElementById("listaRecusados");
+
+  listaAnalise.innerHTML   = analise.length   ? analise.map(cardHTML).join("")   : '<div class="vazio-msg">Nenhum pagamento</div>';
+  listaAprovados.innerHTML = aprovados.length ? aprovados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum aprovado</div>';
+  listaRecusados.innerHTML = recusados.length ? recusados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum recusado</div>';
+
+  // Botões aprovar/recusar/excluir
+  document.querySelectorAll(".btn-aprovar").forEach(btn => {
+    btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "aprovado"));
+  });
+  document.querySelectorAll(".btn-recusar[data-id]").forEach(btn => {
+    btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "recusado"));
+  });
+  document.querySelectorAll("[data-excluir]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (confirm("Excluir este pagamento?")) {
+        const pags = carregarPagamentos().filter(p => p.id !== btn.dataset.excluir);
+        salvarPagamentos(pags);
+        renderizarPagamentos();
+        mostrarMensagem("🗑️ Pagamento excluído!", "sucesso");
+      }
+    });
+  });
+}
+
+function alterarStatusPagamento(id, novoStatus) {
+  const pags = carregarPagamentos();
+  const idx  = pags.findIndex(p => p.id === id);
+  if (idx !== -1) {
+    pags[idx].status = novoStatus;
+    salvarPagamentos(pags);
+    renderizarPagamentos();
+    mostrarMensagem(novoStatus === "aprovado" ? "✅ Pagamento aprovado!" : "❌ Pagamento recusado!", novoStatus === "aprovado" ? "sucesso" : "erro");
+  }
+}
+
+// Mostrar/ocultar form de pagamento
+document.getElementById("btnNovoPagamento").addEventListener("click", () => {
+  const form = document.getElementById("formPagamento");
+  form.style.display = form.style.display === "none" ? "block" : "none";
+});
+
+document.getElementById("btnEnviarPagamento").addEventListener("click", () => {
+  const nome        = document.getElementById("pgNome").value.trim();
+  const serviceiro  = document.getElementById("pgServiceiro").value.trim();
+  const data        = document.getElementById("pgData").value;
+  const valor       = document.getElementById("pgValor").value;
+  const comprovante = document.getElementById("pgComprovante").value.trim();
+  const obs         = document.getElementById("pgObs").value.trim();
+
+  if (!nome || !serviceiro || !data || !valor || !comprovante) {
+    mostrarMensagem("⚠️ Preencha todos os campos obrigatórios.", "erro");
+    return;
+  }
+
+  const pags = carregarPagamentos();
+  pags.push({ id: Date.now().toString(), nome, serviceiro, data, valor, comprovante, obs, status: "analise" });
+  salvarPagamentos(pags);
+  renderizarPagamentos();
+  mostrarMensagem("📤 Pagamento enviado para análise!", "sucesso");
+  document.getElementById("formPagamento").style.display = "none";
+
+  // Limpa campos
+  ["pgNome","pgServiceiro","pgData","pgValor","pgComprovante","pgObs"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+});
+
+// Inicializa contatos e pagamentos ao carregar
+renderizarContatos();
+renderizarPagamentos();

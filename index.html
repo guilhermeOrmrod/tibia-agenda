@@ -24,6 +24,9 @@
       <nav>
         <button class="nav-btn active" data-tab="serviceiros">Serviceiros</button>
         <button class="nav-btn" data-tab="agenda">Agenda</button>
+        <button class="nav-btn" data-tab="precos">Preços</button>
+        <button class="nav-btn" data-tab="contatos">Contatos</button>
+        <button class="nav-btn" data-tab="pagamentos">Pagamentos</button>
       </nav>
       <div id="loginBox">
         <div id="loginArea">
@@ -153,6 +156,148 @@
     </form>
 
     <div id="calendar"></div>
+  </section>
+
+
+  <!-- ABA: Preços -->
+  <section id="tab-precos" class="tab-content">
+    <div class="section-header">
+      <h2>Tabela de Preços</h2>
+    </div>
+    <div class="precos-container">
+
+      <div class="preco-destaque">
+        <div class="preco-info">
+          <span class="preco-icon">💰</span>
+          <div>
+            <h3>Valor mínimo</h3>
+            <p>R$ 20,00 / hora em dias normais</p>
+            <p>R$ 25,00 / hora em dias de evento</p>
+          </div>
+        </div>
+        <div class="preco-obs">
+          <span>⚠️</span> Valores podem ser combinados diretamente com o serviceiro. Consulte a aba Contatos.
+        </div>
+      </div>
+
+      <div class="precos-tabela-wrap">
+        <table class="precos-tabela">
+          <thead>
+            <tr>
+              <th>Vocação</th>
+              <th>Dia Normal</th>
+              <th>Dia de Evento</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="voc-badge ms">🔥 Master Sorcerer</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge ed">🌿 Elder Druid</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge ek">🛡️ Elite Knight</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge rp">🏹 Royal Paladin</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge em">☯️ Exalted Monk</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pix-info">
+        <h3>💳 Pagamento via Pix</h3>
+        <p>Após o agendamento, o pagamento deve ser enviado via Pix ao serviceiro escolhido. Consulte a chave na aba <strong>Contatos</strong>.</p>
+        <p>Envie o comprovante e aguarde aprovação na aba <strong>Pagamentos</strong>.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ABA: Contatos -->
+  <section id="tab-contatos" class="tab-content">
+    <div class="section-header">
+      <h2>Contatos dos Serviceiros</h2>
+      <button id="btnEditarContatos" class="btn-admin" style="display:none">✏️ Editar Contatos</button>
+    </div>
+    <div class="contatos-container">
+      <div id="tabelaContatos"></div>
+    </div>
+    <!-- Modal de edição -->
+    <div id="modalContato" class="modal" style="display:none">
+      <div class="modal-box">
+        <h3>Editar Contato</h3>
+        <input type="hidden" id="editNome">
+        <label>WhatsApp</label>
+        <input type="text" id="editWhats" placeholder="(11) 99999-9999">
+        <label>Pix</label>
+        <input type="text" id="editPix" placeholder="chave pix">
+        <label>Discord</label>
+        <input type="text" id="editDiscord" placeholder="usuario#0000">
+        <div class="modal-actions">
+          <button id="btnSalvarContato">Salvar</button>
+          <button id="btnFecharModal" class="btn-cancelar">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA: Pagamentos -->
+  <section id="tab-pagamentos" class="tab-content">
+    <div class="section-header">
+      <h2>Pagamentos</h2>
+      <button id="btnNovoPagamento" class="btn-gold">+ Registrar Pagamento</button>
+    </div>
+
+    <!-- Formulário novo pagamento -->
+    <div id="formPagamento" class="pagamento-form" style="display:none">
+      <h3>Registrar Comprovante</h3>
+      <div class="form-grid">
+        <input type="text" id="pgNome"       placeholder="Seu nome">
+        <input type="text" id="pgServiceiro" placeholder="Nome do serviceiro">
+        <input type="date" id="pgData">
+        <input type="number" id="pgValor"    placeholder="Valor (R$)" step="0.01">
+        <input type="text" id="pgComprovante" placeholder="Chave ou ID do comprovante Pix">
+        <input type="text" id="pgObs"        placeholder="Observação (opcional)">
+      </div>
+      <button id="btnEnviarPagamento">📤 Enviar para análise</button>
+    </div>
+
+    <!-- Listas -->
+    <div class="pagamentos-wrap">
+      <div class="pagamentos-col">
+        <h4 class="col-titulo analise">🕐 Em Análise</h4>
+        <div id="listaAnalise" class="pagamentos-lista"></div>
+      </div>
+      <div class="pagamentos-col">
+        <h4 class="col-titulo aprovado">✅ Aprovados</h4>
+        <div id="listaAprovados" class="pagamentos-lista"></div>
+      </div>
+      <div class="pagamentos-col">
+        <h4 class="col-titulo recusado">❌ Recusados</h4>
+        <div id="listaRecusados" class="pagamentos-lista"></div>
+      </div>
+    </div>
   </section>
 
   <script src="js/script.js"></script>
