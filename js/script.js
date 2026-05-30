@@ -139,8 +139,6 @@ const servicEireEl = document.getElementById("serviceiro");
 vocacaoEl.addEventListener("change", () => {
   const vocacao = vocacaoEl.value;
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
-  document.getElementById("huntCustom").style.display = "none";
-  document.getElementById("huntCustom").value = "";
   if (vocacao && SERVICEIROS[vocacao]) {
     SERVICEIROS[vocacao].forEach(nome => {
       const opt = document.createElement("option");
