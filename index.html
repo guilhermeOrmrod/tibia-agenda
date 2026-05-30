@@ -134,7 +134,10 @@
     <form id="formAgendamento">
       <h3>Novo Agendamento</h3>
       <div class="form-grid">
-        <input type="text" id="nome" placeholder="Seu nome" required>
+        <div class="input-wrapper">
+          <input type="text" id="nome" placeholder="Seu nick (ex: Fear Popstar)" required autocomplete="off">
+          <span class="input-hint">Apenas letras e espaços — sem números ou símbolos</span>
+        </div>
         <input type="date" id="data" required>
         <input type="time" id="horaInicio" required>
         <input type="time" id="horaFim" required>
@@ -143,13 +146,17 @@
           <option value="Solo">Solo</option>
           <option value="PT">PT</option>
         </select>
-        <select id="hunt" required>
-          <option value="">Hunt</option>
-          <option value="RottenBlood">RottenBlood</option>
-          <option value="Soulwar">Soulwar</option>
-          <option value="Gnomprona">Gnomprona</option>
-          <option value="Crypt">Crypt</option>
-        </select>
+        <div class="input-wrapper">
+          <select id="hunt" required>
+            <option value="">Hunt</option>
+            <option value="RottenBlood">RottenBlood</option>
+            <option value="Soulwar">Soulwar</option>
+            <option value="Gnomprona">Gnomprona</option>
+            <option value="Crypt">Crypt</option>
+            <option value="custom">De sua escolha...</option>
+          </select>
+          <input type="text" id="huntCustom" placeholder="Descreva o hunt desejado" style="display:none;margin-top:6px">
+        </div>
         <select id="vocacao" required>
           <option value="">Vocação do serviceiro</option>
           <option value="Master Sorcerer">Master Sorcerer</option>

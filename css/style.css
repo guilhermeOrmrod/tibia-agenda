@@ -1363,3 +1363,23 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 }
 
 .pg-comprovante:hover { background: rgba(201,168,76,0.2); }
+
+/* ── Input com hint ── */
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.input-wrapper input,
+.input-wrapper select {
+  margin: 0;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: rgba(201,168,76,0.55);
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.3px;
+  padding-left: 2px;
+}

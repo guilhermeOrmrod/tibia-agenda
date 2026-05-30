@@ -139,6 +139,8 @@ const servicEireEl = document.getElementById("serviceiro");
 vocacaoEl.addEventListener("change", () => {
   const vocacao = vocacaoEl.value;
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
+  document.getElementById("huntCustom").style.display = "none";
+  document.getElementById("huntCustom").value = "";
   if (vocacao && SERVICEIROS[vocacao]) {
     SERVICEIROS[vocacao].forEach(nome => {
       const opt = document.createElement("option");
@@ -148,8 +150,22 @@ vocacaoEl.addEventListener("change", () => {
   }
 });
 
+// ── Hunt customizado ──────────────────────────
+document.getElementById("hunt").addEventListener("change", () => {
+  const huntCustom = document.getElementById("huntCustom");
+  if (document.getElementById("hunt").value === "custom") {
+    huntCustom.style.display = "block";
+    huntCustom.required = true;
+    huntCustom.focus();
+  } else {
+    huntCustom.style.display = "none";
+    huntCustom.required = false;
+    huntCustom.value = "";
+  }
+});
+
 // ── Limpa highlight de erro ────────────────
-["nome","data","horaInicio","horaFim","tipo","hunt","vocacao","serviceiro"].forEach(id => {
+["nome","data","horaInicio","horaFim","tipo","hunt","huntCustom","vocacao","serviceiro"].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("change", () => el.classList.remove("campo-invalido"));
   if (el) el.addEventListener("input",  () => el.classList.remove("campo-invalido"));
@@ -280,7 +296,9 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   const horaInicio   = document.getElementById("horaInicio").value;
   const horaFim      = document.getElementById("horaFim").value;
   const tipo         = document.getElementById("tipo").value;
-  const hunt         = document.getElementById("hunt").value;
+  const huntSelect    = document.getElementById("hunt").value;
+  const huntCustomVal = document.getElementById("huntCustom").value.trim();
+  const hunt          = huntSelect === "custom" ? huntCustomVal : huntSelect;
   const vocacao      = document.getElementById("vocacao").value;
   const serviceiro   = document.getElementById("serviceiro").value;
 
@@ -288,7 +306,9 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   const campos = [
     {id:"nome",val:nome_cliente},{id:"data",val:data},
     {id:"horaInicio",val:horaInicio},{id:"horaFim",val:horaFim},
-    {id:"tipo",val:tipo},{id:"hunt",val:hunt},
+    {id:"tipo",val:tipo},
+    {id:"hunt",val:huntSelect},
+    ...(huntSelect === "custom" ? [{id:"huntCustom", val:huntCustomVal}] : []),
     {id:"vocacao",val:vocacao},{id:"serviceiro",val:serviceiro}
   ];
   let temVazio = false;
@@ -298,6 +318,21 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
     else el.classList.remove("campo-invalido");
   });
   if (temVazio) { mostrarMensagem("⚠️ Preencha todos os campos obrigatórios.", "erro"); return; }
+
+  // Valida nome: só letras (incluindo acentos) e espaços
+  const nomeRegex = /^[a-zA-ZÀ-ÿ ]+$/;
+  if (!nomeRegex.test(nome_cliente)) {
+    document.getElementById("nome").classList.add("campo-invalido");
+    mostrarMensagem("⚠️ Nome inválido — use apenas letras e espaços, sem números ou símbolos.", "erro");
+    return;
+  }
+
+  // Valida hunt customizado
+  if (huntSelect === "custom" && !huntCustomVal) {
+    document.getElementById("huntCustom").classList.add("campo-invalido");
+    mostrarMensagem("⚠️ Descreva o hunt desejado.", "erro");
+    return;
+  }
 
   const inicio = new Date(data + "T" + horaInicio);
   const fim    = new Date(data + "T" + horaFim);
@@ -329,6 +364,8 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   mostrarMensagem("✅ Agendamento com " + serviceiro + " realizado!", "sucesso");
   e.target.reset();
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
+  document.getElementById("huntCustom").style.display = "none";
+  document.getElementById("huntCustom").value = "";
 });
 
 // =========================================
