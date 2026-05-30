@@ -62,7 +62,7 @@ function verificarDisponibilidade(dataSelecionada) {
     // Verifica se o serviceiro tem agendamento nessa data
     const ocupado = eventos.some(ev => {
       const dataEvento = ev.inicio.split("T")[0];
-      return ev.nome === nome && dataEvento === dataSelecionada;
+      return ev.serviceiro === nome && dataEvento === dataSelecionada;
     });
 
     if (ocupado) {
@@ -98,11 +98,19 @@ vocacaoEl.addEventListener("change", () => {
   }
 });
 
+// ── Limpa highlight de erro ao preencher campo ──
+["nome","data","horaInicio","horaFim","tipo","hunt","vocacao","serviceiro"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener("change", () => el.classList.remove("campo-invalido"));
+  if (el) el.addEventListener("input",  () => el.classList.remove("campo-invalido"));
+});
+
 // ── Calendário ────────────────────────────
 const calendarEl = document.getElementById("calendar");
 
 const calendar = new FullCalendar.Calendar(calendarEl, {
   initialView: "dayGridMonth",
+  initialDate: new Date(),
   eventDisplay: "block",
   locale: "pt-br",
 
@@ -204,10 +212,34 @@ document.getElementById("formAgendamento").addEventListener("submit", (e) => {
   const vocacao     = document.getElementById("vocacao").value;
   const serviceiro  = document.getElementById("serviceiro").value;
 
-  if (!nomeCliente || !data || !horaInicio || !horaFim || !tipo || !hunt || !vocacao || !serviceiro) {
-    mostrarMensagem("⚠️ Preencha todos os campos.", "erro");
+  // Validação visual: destaca campos vazios
+  const campos = [
+    { id: "nome",       val: nomeCliente },
+    { id: "data",       val: data },
+    { id: "horaInicio", val: horaInicio },
+    { id: "horaFim",    val: horaFim },
+    { id: "tipo",       val: tipo },
+    { id: "hunt",       val: hunt },
+    { id: "vocacao",    val: vocacao },
+    { id: "serviceiro", val: serviceiro }
+  ];
+
+  let temVazio = false;
+  campos.forEach(c => {
+    const el = document.getElementById(c.id);
+    if (!c.val) {
+      el.classList.add("campo-invalido");
+      temVazio = true;
+    } else {
+      el.classList.remove("campo-invalido");
+    }
+  });
+
+  if (temVazio) {
+    mostrarMensagem("⚠️ Preencha todos os campos obrigatórios.", "erro");
     return;
   }
+
 
   const inicio = new Date(data + "T" + horaInicio);
   const fim    = new Date(data + "T" + horaFim);
