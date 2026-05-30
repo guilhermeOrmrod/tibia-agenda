@@ -52,9 +52,9 @@ async function supaUpload(bucket, path, file) {
 // ── Dados dos serviceiros por vocação ──────
 const SERVICEIROS = {
   "Master Sorcerer": ["Fear", "Panic", "Cassinho", "Murilo"],
-  "Elder Druid":     ["Murilo", "Cassinho", "Panic"],
+  "Elder Druid":     ["Murilo", "Cassinho", "Panic", "Jaapacrazy"],
   "Elite Knight":    ["Paradox", "Raikess", "Cassinho", "Murilo"],
-  "Royal Paladin":   ["Accid", "Cassinho", "Raikess"],
+  "Royal Paladin":   ["Accid", "Cassinho", "Raikess", "Jaapacrazy"],
   "Exalted Monk":    ["Murilo"]
 };
 
