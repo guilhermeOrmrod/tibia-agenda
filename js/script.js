@@ -229,7 +229,7 @@ async function carregarCalendario() {
 carregarCalendario();
 
 // ── Autenticação ──────────────────────────
-const SENHA_ADMIN   = "admin123";
+const SENHA_ADMIN   = "adminFatal1289";
 const SENHA_CLIENTE = "cliente123";
 let SENHA_ADMIN_DIN   = SENHA_ADMIN;
 let SENHA_CLIENTE_DIN = SENHA_CLIENTE;
