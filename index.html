@@ -136,9 +136,7 @@
     <form id="formAgendamento">
       <h3>Novo Agendamento</h3>
       <div class="form-grid">
-        <div class="input-wrapper">
-          <input type="text" id="nome" placeholder="Seu nick (ex: Fear Popstar)" required autocomplete="off">
-        </div>
+        <input type="text" id="nome" placeholder="Seu nick (ex: Fear Popstar)" required autocomplete="off">
         <input type="date" id="data" required>
         <input type="time" id="horaInicio" required>
         <input type="time" id="horaFim" required>
@@ -147,17 +145,14 @@
           <option value="Solo">Solo</option>
           <option value="PT">PT</option>
         </select>
-        <div class="input-wrapper">
-          <select id="hunt" required>
-            <option value="">Hunt</option>
-            <option value="RottenBlood">RottenBlood</option>
-            <option value="Soulwar">Soulwar</option>
-            <option value="Gnomprona">Gnomprona</option>
-            <option value="Crypt">Crypt</option>
-            <option value="custom">De sua escolha...</option>
-          </select>
-          <input type="text" id="huntCustom" placeholder="Descreva o hunt desejado" style="display:none;margin-top:6px">
-        </div>
+        <select id="hunt" required>
+          <option value="">Hunt</option>
+          <option value="RottenBlood">RottenBlood</option>
+          <option value="Soulwar">Soulwar</option>
+          <option value="Gnomprona">Gnomprona</option>
+          <option value="Crypt">Crypt</option>
+          <option value="custom">De sua escolha...</option>
+        </select>
         <select id="vocacao" required>
           <option value="">Vocação do serviceiro</option>
           <option value="Master Sorcerer">Master Sorcerer</option>
@@ -170,6 +165,8 @@
           <option value="">Serviceiro</option>
         </select>
       </div>
+      <!-- Campo fora do grid para não interferir no layout -->
+      <input type="text" id="huntCustom" placeholder="Descreva o hunt desejado" style="display:none;margin-top:8px;width:100%">
       <button type="submit">⚔️ Agendar</button>
     </form>
 
