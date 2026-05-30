@@ -407,17 +407,121 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 .fc-day-today { background: rgba(201,168,76,0.07) !important; }
 .fc-event { border-radius: 4px !important; border: none !important; font-size: 11px !important; }
 
-/* ── Responsivo ── */
-@media (max-width: 700px) {
-  .header-inner { height: auto; padding: 12px 0; gap: 10px; }
-  .logo h1 { font-size: 16px; }
-  nav { order: 3; width: 100%; }
+/* =========================================
+   RESPONSIVO MOBILE
+   ========================================= */
+
+@media (max-width: 768px) {
+
+  /* Header */
+  header { padding: 0 12px; }
+  .header-inner {
+    height: auto;
+    padding: 10px 0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .logo h1 { font-size: 15px; }
+  .logo-sub { font-size: 9px; }
+  .logo-icon { font-size: 22px; }
+
+  /* Nav vira scroll horizontal */
+  nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    display: flex;
+    gap: 4px;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  .nav-btn {
+    font-size: 11px;
+    padding: 5px 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Login compacto */
   #loginBox { order: 2; margin-left: auto; }
-  .vocacoes-grid { grid-template-columns: 1fr 1fr; }
+  #loginArea input { width: 90px; font-size: 12px; }
+  #loginArea button { padding: 5px 8px; font-size: 11px; }
+  #usuarioLogado { font-size: 11px; }
+
+  /* Mensagem */
+  #mensagem { font-size: 11px; margin: 8px 12px; }
+
+  /* Serviceiros */
+  .section-header {
+    padding: 0 12px;
+    margin: 16px auto 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .section-header h2 { font-size: 16px; }
+  .date-filter { width: 100%; }
+  .date-filter input { flex: 1; }
+
+  .vocacoes-grid {
+    grid-template-columns: 1fr 1fr;
+    padding: 0 12px;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .vocacao-header { padding: 10px 12px; }
+  .vocacao-header h3 { font-size: 12px; }
+  .vocacao-icon { font-size: 16px; }
+  .serviceiros-list li { padding: 7px 12px; }
+  .serviceiros-list .nome { font-size: 13px; }
+  .badge { font-size: 10px; padding: 2px 7px; }
+  .horarios-ocupados { font-size: 10px; }
+
+  /* Agenda */
+  #tab-agenda { padding: 0 12px; margin: 16px auto 24px; }
+  #formAgendamento { padding: 14px; }
+  #formAgendamento h3 { font-size: 14px; }
+  .form-grid { grid-template-columns: 1fr; gap: 8px; }
+  #calendar { padding: 10px; }
+  .fc-toolbar-title { font-size: 14px !important; }
+  .fc-button { font-size: 11px !important; padding: 4px 8px !important; }
+
+  /* Preços */
+  #tab-precos { padding: 0 12px; margin: 16px auto 24px; }
+  .preco-destaque { padding: 14px; }
+  .preco-info { flex-direction: column; gap: 8px; }
+  .preco-icon { font-size: 24px; }
+  .precos-tabela th, .precos-tabela td { padding: 8px 10px; font-size: 12px; }
+
+  /* Contatos */
+  #tab-contatos { padding: 0 12px; margin: 16px auto 24px; }
+  .contato-row {
+    grid-template-columns: 1fr 1fr;
+    padding: 10px 12px;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .contato-row.header { display: none; }
+  .contato-nome { font-weight: 700; grid-column: 1 / -1; }
+  .contato-info { font-size: 12px; }
+
+  /* Pagamentos */
+  #tab-pagamentos { padding: 0 12px; margin: 16px auto 24px; }
+  .pagamentos-wrap { grid-template-columns: 1fr; gap: 12px; }
+  .pagamento-form { padding: 14px; }
+  .pagamento-form .form-grid { grid-template-columns: 1fr; }
+  .pg-acoes { flex-direction: column; }
+
+  /* Modal */
+  .modal-box { padding: 20px; width: 92vw; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 400px) {
   .vocacoes-grid { grid-template-columns: 1fr; }
+  .logo h1 { font-size: 13px; }
 }
 
 /* ── Validação de campos obrigatórios ── */
