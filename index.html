@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda de Serviços Rubinot - Panic</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <style>
+    body {
+      background: url('https://wallpaper.forfun.com/fetch/09/0977c6fe99720911613eeb97a7d8ae6f.jpeg') no-repeat center center fixed;
+      background-size: cover;
+      color: #f8fafc;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h1 {
+      margin: 0 0 20px 0;
+      font-size: 24px;
+    }
+
+    /* ── Login ── */
+    #loginBox {
+      background: #1e293bcc;
+      padding: 15px;
+      border-radius: 8px;
+      width: 240px;
+      margin-bottom: 20px;
+    }
+    #loginBox h3 { margin: 0 0 10px 0; font-size: 16px; color: #fff; text-align: center; }
+    #loginArea { text-align: center; }
+    #loginArea input { width: 120px; padding: 5px; border-radius: 5px; border: none; }
+    #loginArea button { padding: 5px 10px; border-radius: 5px; border: none; background: #9333ea; color: #fff; cursor: pointer; margin-left: 5px; width: auto; }
+    #loginArea button:hover { background: #7e22ce; }
+    #userArea { text-align: center; display: none; }
+    #usuarioLogado { margin-right: 10px; font-weight: bold; }
+
+    /* ── Container principal ── */
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      max-width: 1200px;
+      margin: 20px auto;
+    }
+
+    /* ── Formulário ── */
+    #formAgendamento {
+      width: 100%;
+      margin-bottom: 20px;
+      background: #1e293bcc;
+      padding: 20px;
+      border-radius: 12px;
+      display: none;
+      box-sizing: border-box;
+    }
+
+    /* ── Calendário ── */
+    #calendar {
+      width: 100%;
+      background: #1e293bcc;
+      padding: 20px;
+      border-radius: 12px;
+      box-sizing: border-box;
+    }
+
+    /* ── Inputs & selects globais ── */
+    input, select { margin: 5px 0; padding: 10px; border-radius: 8px; border: none; font-size: 14px; width: 100%; box-sizing: border-box; }
+    button { margin: 5px 0; padding: 10px; border-radius: 8px; border: none; font-size: 14px; width: 100%; background: #9333ea; color: white; cursor: pointer; }
+    button:hover { background: #7e22ce; }
+
+    /* ── Mensagem de feedback ── */
+    #mensagem {
+      margin: 15px auto;
+      max-width: 900px;
+      text-align: center;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+    }
+    .erro    { background: #dc2626cc; color: #fff; }
+    .sucesso { background: #16a34acc; color: #fff; }
+    #fecharMsg { margin-left: 10px; background: #444; color: #fff; border: none; border-radius: 5px; cursor: pointer; padding: 2px 6px; width: auto; }
+
+    /* ── Responsivo ── */
+    @media (max-width: 600px) {
+      h1 { font-size: 18px; }
+      #loginBox { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📅 Agenda de Serviços Rubinot - Panic</h1>
+  <div id="mensagem"></div>
+
+  <!-- Login -->
+  <div id="loginBox">
+    <h3>Login</h3>
+    <div id="loginArea">
+      <input type="password" id="senha" placeholder="Senha">
+      <button id="loginBtn">Entrar</button>
+    </div>
+    <div id="userArea">
+      <span id="usuarioLogado"></span>
+      <button id="logoutBtn">Sair</button>
+    </div>
+  </div>
+
+  <!-- Conteúdo principal -->
+  <div id="container">
+
+    <!-- Formulário de agendamento -->
+    <form id="formAgendamento">
+      <input type="text"  id="nome"       placeholder="Seu nome" required>
+      <input type="date"  id="data"       required>
+      <input type="time"  id="horaInicio" required>
+      <input type="time"  id="horaFim"    required>
+
+      <!-- CORRIGIDO: "tipo" e "hunt" capturados no submit -->
+      <select id="tipo" required>
+        <option value="">Selecione o tipo</option>
+        <option value="Solo">Solo</option>
+        <option value="PT">PT</option>
+      </select>
+
+      <select id="hunt" required>
+        <option value="">Selecione o hunt</option>
+        <option value="RottenBlood">RottenBlood</option>
+        <option value="Soulwar">Soulwar</option>
+        <option value="Gnomprona">Gnomprona</option>
+        <option value="Crypt">Crypt</option>
+      </select>
+
+      <select id="vocacao" required>
+        <option value="">Selecione a vocação</option>
+        <option value="Knight">Knight</option>
+        <option value="Paladin">Paladin</option>
+        <option value="Sorcerer">Sorcerer</option>
+        <option value="Druid">Druid</option>
+      </select>
+
+      <button type="submit">Agendar</button>
+    </form>
+
+    <div id="calendar"></div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────
+    // Mensagens de feedback
+    // ─────────────────────────────────────────
+    const mensagemEl = document.getElementById("mensagem");
+
+    function mostrarMensagem(texto, tipo) {
+      mensagemEl.innerHTML = texto + ' <button id="fecharMsg">X</button>';
+      mensagemEl.className = tipo;
+      mensagemEl.style.display = "block";
+      document.getElementById("fecharMsg").addEventListener("click", () => {
+        mensagemEl.style.display = "none";
+      });
+    }
+
+    // ─────────────────────────────────────────
+    // CORRIGIDO: Persistência via localStorage
+    // (substitui os fetch para /api/agendamentos
+    //  que não existem em sites estáticos)
+    // ─────────────────────────────────────────
+    const STORAGE_KEY = "rubinot_agendamentos";
+
+    function salvarEventos(eventos) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(eventos));
+    }
+
+    function carregarEventos() {
+      const dados = localStorage.getItem(STORAGE_KEY);
+      return dados ? JSON.parse(dados) : [];
+    }
+
+    // ─────────────────────────────────────────
+    // Calendário
+    // ─────────────────────────────────────────
+    const calendarEl = document.getElementById("calendar");
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: "dayGridMonth",
+      eventDisplay: "block",
+      locale: "pt-br",
+
+      eventClick: function (info) {
+        const ep = info.event.extendedProps;
+        const detalhes =
+          "📌 " + ep.nome +
+          " | Tipo: " + ep.tipo +
+          " | Hunt: " + ep.hunt +
+          " | Vocação: " + ep.vocacao +
+          "\nInício: " + info.event.start.toLocaleString("pt-BR") +
+          " | Fim: "   + info.event.end.toLocaleString("pt-BR");
+
+        if (tipoUsuario === "admin") {
+          if (confirm(detalhes + "\n\nDeseja excluir este agendamento?")) {
+            // Remove da memória do calendário
+            info.event.remove();
+            // Remove do localStorage
+            const salvos = carregarEventos().filter(ev => ev.id !== ep.id);
+            salvarEventos(salvos);
+            mostrarMensagem("🗑️ Evento excluído com sucesso!", "sucesso");
+          } else {
+            mostrarMensagem(detalhes.replace(/\n/g, " "), "sucesso");
+          }
+        } else {
+          mostrarMensagem(detalhes.replace(/\n/g, " "), "sucesso");
+        }
+      },
+
+      events: []
+    });
+
+    calendar.render();
+
+    // Carrega eventos salvos ao abrir a página
+    carregarEventos().forEach(ev => {
+      calendar.addEvent({
+        id:    ev.id,
+        title: ev.nome + " — " + ev.tipo + " / " + ev.hunt + " (" + ev.vocacao + ")",
+        start: ev.inicio,
+        end:   ev.fim,
+        extendedProps: { id: ev.id, nome: ev.nome, tipo: ev.tipo, hunt: ev.hunt, vocacao: ev.vocacao }
+      });
+    });
+
+    // ─────────────────────────────────────────
+    // ATENÇÃO: senhas visíveis no front-end
+    // são inseguras por definição. Para uso
+    // pessoal/de amigos está ok, mas nunca
+    // coloque senhas importantes aqui.
+    // ─────────────────────────────────────────
+    const SENHA_ADMIN   = "admin123";
+    const SENHA_CLIENTE = "cliente123";
+    let tipoUsuario = null;
+
+    // ─────────────────────────────────────────
+    // Login / Logout
+    // ─────────────────────────────────────────
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const senha = document.getElementById("senha").value;
+
+      if (senha === SENHA_ADMIN) {
+        tipoUsuario = "admin";
+        mostrarMensagem("✅ Logado como ADMIN", "sucesso");
+        document.getElementById("formAgendamento").style.display = "block";
+        document.getElementById("loginArea").style.display = "none";
+        document.getElementById("userArea").style.display = "block";
+        document.getElementById("usuarioLogado").textContent = "👤 ADMIN";
+
+      } else if (senha === SENHA_CLIENTE) {
+        tipoUsuario = "cliente";
+        mostrarMensagem("✅ Logado como CLIENTE", "sucesso");
+        document.getElementById("formAgendamento").style.display = "block";
+        document.getElementById("loginArea").style.display = "none";
+        document.getElementById("userArea").style.display = "block";
+        document.getElementById("usuarioLogado").textContent = "👤 CLIENTE";
+
+      } else {
+        mostrarMensagem("⚠️ Senha incorreta!", "erro");
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      tipoUsuario = null;
+      document.getElementById("formAgendamento").style.display = "none";
+      document.getElementById("loginArea").style.display = "block";
+      document.getElementById("userArea").style.display = "none";
+      document.getElementById("senha").value = "";
+      mostrarMensagem("Saiu da conta.", "sucesso");
+    });
+
+    // ─────────────────────────────────────────
+    // Envio do formulário
+    // ─────────────────────────────────────────
+    document.getElementById("formAgendamento").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      if (!tipoUsuario) {
+        mostrarMensagem("⚠️ Você precisa estar logado.", "erro");
+        return;
+      }
+
+      const nome       = document.getElementById("nome").value.trim();
+      const data       = document.getElementById("data").value;
+      const horaInicio = document.getElementById("horaInicio").value;
+      const horaFim    = document.getElementById("horaFim").value;
+      // CORRIGIDO: captura "tipo" e "hunt" (não mais "servico" que não existe)
+      const tipo       = document.getElementById("tipo").value;
+      const hunt       = document.getElementById("hunt").value;
+      const vocacao    = document.getElementById("vocacao").value;
+
+      // Validação de campos obrigatórios
+      if (!nome || !data || !horaInicio || !horaFim || !tipo || !hunt || !vocacao) {
+        mostrarMensagem("⚠️ Preencha todos os campos.", "erro");
+        return;
+      }
+
+      const inicio = new Date(data + "T" + horaInicio);
+      const fim    = new Date(data + "T" + horaFim);
+      const agora  = new Date();
+
+      if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) {
+        mostrarMensagem("⚠️ Data ou horário inválido.", "erro");
+        return;
+      }
+
+      if (fim <= inicio) {
+        mostrarMensagem("⚠️ O horário de fim deve ser após o horário de início.", "erro");
+        return;
+      }
+
+      if (inicio < agora) {
+        mostrarMensagem("⚠️ Não é possível agendar em datas/horários anteriores ao atual.", "erro");
+        return;
+      }
+
+      // Verifica conflito de horários
+      const conflito = calendar.getEvents().some(ev => {
+        return (
+          (inicio >= ev.start && inicio < ev.end) ||
+          (fim    >  ev.start && fim   <= ev.end) ||
+          (inicio <= ev.start && fim   >= ev.end)
+        );
+      });
+
+      if (conflito) {
+        mostrarMensagem("⚠️ Já existe um agendamento neste horário.", "erro");
+        return;
+      }
+
+      // ID único para poder excluir depois
+      const id = Date.now().toString();
+
+      // Adiciona no calendário (na tela)
+      calendar.addEvent({
+        id,
+        title: nome + " — " + tipo + " / " + hunt + " (" + vocacao + ")",
+        start: inicio,
+        end:   fim,
+        extendedProps: { id, nome, tipo, hunt, vocacao }
+      });
+
+      // CORRIGIDO: persiste no localStorage (sem backend)
+      const salvos = carregarEventos();
+      salvos.push({ id, nome, tipo, hunt, vocacao, inicio: inicio.toISOString(), fim: fim.toISOString() });
+      salvarEventos(salvos);
+
+      mostrarMensagem("✅ Agendamento realizado com sucesso!", "sucesso");
+
+      // CORRIGIDO: limpa o formulário após agendar
+      e.target.reset();
+    });
+  </script>
+</body>
+</html>
