@@ -1174,3 +1174,56 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   .pagamentos-wrap { grid-template-columns: 1fr; }
   .contato-row { grid-template-columns: 1fr 1fr; }
 }
+
+/* ── Upload de comprovante ── */
+.upload-area {
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px dashed rgba(201,168,76,0.35);
+  border-radius: 8px;
+  background: rgba(201,168,76,0.04);
+}
+
+.upload-area label {
+  display: block;
+  font-size: 13px;
+  color: var(--gold);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.upload-area input[type="file"] {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: rgba(232,223,192,0.7);
+  cursor: pointer;
+}
+
+#uploadPreview {
+  margin-top: 10px;
+}
+
+#uploadPreview img {
+  max-width: 200px;
+  max-height: 120px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+}
+
+.pg-comprovante {
+  display: inline-block;
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--gold);
+  text-decoration: none;
+  padding: 3px 10px;
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 5px;
+  background: rgba(201,168,76,0.08);
+  transition: background 0.2s;
+}
+
+.pg-comprovante:hover { background: rgba(201,168,76,0.2); }

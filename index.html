@@ -273,12 +273,16 @@
     <div id="formPagamento" class="pagamento-form" style="display:none">
       <h3>Registrar Comprovante</h3>
       <div class="form-grid">
-        <input type="text" id="pgNome"       placeholder="Seu nome">
-        <input type="text" id="pgServiceiro" placeholder="Nome do serviceiro">
-        <input type="date" id="pgData">
-        <input type="number" id="pgValor"    placeholder="Valor (R$)" step="0.01">
-        <input type="text" id="pgComprovante" placeholder="Chave ou ID do comprovante Pix">
-        <input type="text" id="pgObs"        placeholder="Observação (opcional)">
+        <input type="text"   id="pgNome"       placeholder="Seu nome">
+        <input type="text"   id="pgServiceiro" placeholder="Nome do serviceiro">
+        <input type="date"   id="pgData">
+        <input type="number" id="pgValor"      placeholder="Valor (R$)" step="0.01">
+        <input type="text"   id="pgObs"        placeholder="Observação (opcional)">
+      </div>
+      <div class="upload-area">
+        <label for="pgArquivo">📎 Comprovante Pix (imagem ou PDF)</label>
+        <input type="file" id="pgArquivo" accept="image/*,.pdf">
+        <div id="uploadPreview"></div>
       </div>
       <button id="btnEnviarPagamento">📤 Enviar para análise</button>
     </div>

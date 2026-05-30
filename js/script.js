@@ -1,8 +1,55 @@
 // =========================================
 // script.js — Fatal Services · Rubinot
+// Integrado com Supabase
 // =========================================
 
-// ── Dados dos serviceiros por vocação ─────
+// ── Configuração Supabase ──────────────────
+const SUPA_URL = "https://lkhnklrjaalxutbnlxsy.supabase.co";
+const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxraG5rbHJqYWFseHV0Ym5seHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjE3NjUsImV4cCI6MjA5NTY5Nzc2NX0.BCifSPGyoI5pN1OTRgpWQQW4rRMnvTO-WOSi1xuIcPk";
+
+const HEADERS = {
+  "apikey":        SUPA_KEY,
+  "Authorization": "Bearer " + SUPA_KEY,
+  "Content-Type":  "application/json",
+  "Prefer":        "return=representation"
+};
+
+async function supaGet(tabela, query = "") {
+  const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}?${query}`, { headers: HEADERS });
+  return res.json();
+}
+
+async function supaPost(tabela, body) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
+    method: "POST", headers: HEADERS, body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+async function supaPatch(tabela, id, body) {
+  const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}?id=eq.${id}`, {
+    method: "PATCH", headers: HEADERS, body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+async function supaDelete(tabela, id) {
+  await fetch(`${SUPA_URL}/rest/v1/${tabela}?id=eq.${id}`, {
+    method: "DELETE", headers: HEADERS
+  });
+}
+
+async function supaUpload(bucket, path, file) {
+  const res = await fetch(`${SUPA_URL}/storage/v1/object/${bucket}/${path}`, {
+    method: "POST",
+    headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY },
+    body: file
+  });
+  const data = await res.json();
+  return `${SUPA_URL}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+// ── Dados dos serviceiros por vocação ──────
 const SERVICEIROS = {
   "Master Sorcerer": ["Fear", "Panic", "Cassinho", "Murilo"],
   "Elder Druid":     ["Murilo", "Cassinho", "Panic"],
@@ -10,18 +57,6 @@ const SERVICEIROS = {
   "Royal Paladin":   ["Accid", "Cassinho", "Raikess"],
   "Exalted Monk":    ["Murilo"]
 };
-
-// ── Persistência (localStorage) ───────────
-const STORAGE_KEY = "rubinot_agendamentos";
-
-function salvarEventos(eventos) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(eventos));
-}
-
-function carregarEventos() {
-  const dados = localStorage.getItem(STORAGE_KEY);
-  return dados ? JSON.parse(dados) : [];
-}
 
 // ── Mensagens de feedback ──────────────────
 const mensagemEl = document.getElementById("mensagem");
@@ -41,73 +76,64 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
     document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
-    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    const aba = btn.dataset.tab;
+    document.getElementById("tab-" + aba).classList.add("active");
+    if (aba === "agenda")    setTimeout(() => calendar.updateSize(), 50);
+    if (aba === "contatos")  renderizarContatos();
+    if (aba === "pagamentos") renderizarPagamentos();
   });
 });
 
-// ── Lógica de disponibilidade ──────────────
-// Define a data do filtro como hoje por padrão
+// ── Disponibilidade ────────────────────────
 const dataFiltroEl = document.getElementById("dataFiltro");
-const hoje = new Date().toISOString().split("T")[0];
-dataFiltroEl.value = hoje;
+dataFiltroEl.value = new Date().toISOString().split("T")[0];
 
 function formatarHora(isoString) {
-  const d = new Date(isoString);
-  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(isoString).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function verificarDisponibilidade(dataSelecionada) {
-  const eventos = carregarEventos();
+let agendamentosCache = [];
+
+async function verificarDisponibilidade(dataSelecionada) {
+  try {
+    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00&inicio=lte.${dataSelecionada}T23:59:59`);
+  } catch(e) {
+    agendamentosCache = [];
+  }
 
   document.querySelectorAll(".serviceiros-list li").forEach(li => {
     const nome  = li.dataset.nome;
     const badge = li.querySelector(".badge");
 
-    // Filtra agendamentos do serviceiro nessa data, ordenados por início
-    const agendamentosDia = eventos
-      .filter(ev => ev.serviceiro === nome && ev.inicio.split("T")[0] === dataSelecionada)
+    const agendamentosDia = agendamentosCache
+      .filter(ev => ev.serviceiro === nome)
       .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
+
+    const spanExistente = li.querySelector(".horarios-ocupados");
+    if (spanExistente) spanExistente.remove();
 
     if (agendamentosDia.length === 0) {
       badge.textContent = "Disponível";
       badge.className   = "badge disponivel";
-      badge.title       = "";
     } else {
-      // Monta string com todos os horários ocupados
       const horarios = agendamentosDia
         .map(ev => formatarHora(ev.inicio) + "–" + formatarHora(ev.fim))
         .join(", ");
-
       badge.textContent = "Ocupado";
       badge.className   = "badge ocupado";
-      badge.title       = "Horários: " + horarios;
-
-      // Adiciona span com os horários visível abaixo do badge
-      let spanHorario = li.querySelector(".horarios-ocupados");
-      if (!spanHorario) {
-        spanHorario = document.createElement("span");
-        spanHorario.className = "horarios-ocupados";
-        li.appendChild(spanHorario);
-      }
-      spanHorario.textContent = horarios;
-    }
-
-    // Remove span de horários se ficou disponível
-    if (agendamentosDia.length === 0) {
-      const spanExistente = li.querySelector(".horarios-ocupados");
-      if (spanExistente) spanExistente.remove();
+      const span = document.createElement("span");
+      span.className   = "horarios-ocupados";
+      span.textContent = horarios;
+      li.appendChild(span);
     }
   });
 }
 
-// Verifica ao carregar e ao mudar a data
 verificarDisponibilidade(dataFiltroEl.value);
-dataFiltroEl.addEventListener("change", () => {
-  verificarDisponibilidade(dataFiltroEl.value);
-});
+dataFiltroEl.addEventListener("change", () => verificarDisponibilidade(dataFiltroEl.value));
 
-// ── Select dinâmico: serviceiro por vocação ─
-const vocacaoEl   = document.getElementById("vocacao");
+// ── Select dinâmico serviceiro ─────────────
+const vocacaoEl    = document.getElementById("vocacao");
 const servicEireEl = document.getElementById("serviceiro");
 
 vocacaoEl.addEventListener("change", () => {
@@ -115,15 +141,14 @@ vocacaoEl.addEventListener("change", () => {
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   if (vocacao && SERVICEIROS[vocacao]) {
     SERVICEIROS[vocacao].forEach(nome => {
-      const opt  = document.createElement("option");
-      opt.value  = nome;
-      opt.textContent = nome;
+      const opt = document.createElement("option");
+      opt.value = opt.textContent = nome;
       servicEireEl.appendChild(opt);
     });
   }
 });
 
-// ── Limpa highlight de erro ao preencher campo ──
+// ── Limpa highlight de erro ────────────────
 ["nome","data","horaInicio","horaFim","tipo","hunt","vocacao","serviceiro"].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener("change", () => el.classList.remove("campo-invalido"));
@@ -132,29 +157,27 @@ vocacaoEl.addEventListener("change", () => {
 
 // ── Calendário ────────────────────────────
 const calendarEl = document.getElementById("calendar");
+const calendar   = new FullCalendar.Calendar(calendarEl, {
+  initialView:   "dayGridMonth",
+  initialDate:   new Date(),
+  eventDisplay:  "block",
+  locale:        "pt-br",
 
-const calendar = new FullCalendar.Calendar(calendarEl, {
-  initialView: "dayGridMonth",
-  initialDate: new Date(),
-  eventDisplay: "block",
-  locale: "pt-br",
-
-  eventClick: function (info) {
+  eventClick: async function (info) {
     const ep = info.event.extendedProps;
     const detalhes =
-      "📌 " + ep.nomeCliente +
+      "📌 " + ep.nome_cliente +
       " | Serviceiro: " + ep.serviceiro +
       " | " + ep.vocacao +
       " | Tipo: " + ep.tipo +
       " | Hunt: " + ep.hunt +
       "\nInício: " + info.event.start.toLocaleString("pt-BR") +
-      " | Fim: "  + info.event.end.toLocaleString("pt-BR");
+      " | Fim: "   + info.event.end.toLocaleString("pt-BR");
 
     if (tipoUsuario === "admin") {
       if (confirm(detalhes + "\n\nDeseja excluir este agendamento?")) {
+        await supaDelete("agendamentos", ep.id);
         info.event.remove();
-        const salvos = carregarEventos().filter(ev => ev.id !== ep.id);
-        salvarEventos(salvos);
         verificarDisponibilidade(dataFiltroEl.value);
         mostrarMensagem("🗑️ Agendamento excluído!", "sucesso");
       } else {
@@ -164,34 +187,31 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
       mostrarMensagem(detalhes.replace(/\n/g, " "), "sucesso");
     }
   },
-
   events: []
 });
 
 calendar.render();
+window.addEventListener("resize", () => calendar.updateSize());
 
-// Corrige bug de tamanho ao trocar de monitor ou redimensionar janela
-window.addEventListener("resize", () => {
-  calendar.updateSize();
-});
+// Carrega agendamentos do Supabase no calendário
+async function carregarCalendario() {
+  try {
+    const eventos = await supaGet("agendamentos", "order=inicio.asc");
+    eventos.forEach(ev => {
+      calendar.addEvent({
+        id:    ev.id,
+        title: ev.serviceiro + " → " + ev.nome_cliente + " (" + ev.hunt + ")",
+        start: ev.inicio,
+        end:   ev.fim,
+        extendedProps: { id: ev.id, nome_cliente: ev.nome_cliente, serviceiro: ev.serviceiro, vocacao: ev.vocacao, tipo: ev.tipo, hunt: ev.hunt }
+      });
+    });
+  } catch(e) {
+    console.error("Erro ao carregar calendário:", e);
+  }
+}
 
-// Força recálculo ao trocar de aba (Serviceiros <-> Agenda)
-document.querySelectorAll(".nav-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    setTimeout(() => calendar.updateSize(), 50);
-  });
-});
-
-// Carrega eventos salvos
-carregarEventos().forEach(ev => {
-  calendar.addEvent({
-    id:    ev.id,
-    title: ev.serviceiro + " → " + ev.nomeCliente + " (" + ev.hunt + ")",
-    start: ev.inicio,
-    end:   ev.fim,
-    extendedProps: { id: ev.id, nomeCliente: ev.nomeCliente, serviceiro: ev.serviceiro, vocacao: ev.vocacao, tipo: ev.tipo, hunt: ev.hunt }
-  });
-});
+carregarCalendario();
 
 // ── Autenticação ──────────────────────────
 const SENHA_ADMIN   = "admin123";
@@ -238,320 +258,246 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
 });
 
 // ── Formulário de agendamento ─────────────
-document.getElementById("formAgendamento").addEventListener("submit", (e) => {
+document.getElementById("formAgendamento").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (!tipoUsuario) { mostrarMensagem("⚠️ Faça login primeiro.", "erro"); return; }
 
-  if (!tipoUsuario) {
-    mostrarMensagem("⚠️ Você precisa estar logado.", "erro");
-    return;
-  }
+  const nome_cliente = document.getElementById("nome").value.trim();
+  const data         = document.getElementById("data").value;
+  const horaInicio   = document.getElementById("horaInicio").value;
+  const horaFim      = document.getElementById("horaFim").value;
+  const tipo         = document.getElementById("tipo").value;
+  const hunt         = document.getElementById("hunt").value;
+  const vocacao      = document.getElementById("vocacao").value;
+  const serviceiro   = document.getElementById("serviceiro").value;
 
-  const nomeCliente = document.getElementById("nome").value.trim();
-  const data        = document.getElementById("data").value;
-  const horaInicio  = document.getElementById("horaInicio").value;
-  const horaFim     = document.getElementById("horaFim").value;
-  const tipo        = document.getElementById("tipo").value;
-  const hunt        = document.getElementById("hunt").value;
-  const vocacao     = document.getElementById("vocacao").value;
-  const serviceiro  = document.getElementById("serviceiro").value;
-
-  // Validação visual: destaca campos vazios
+  // Validação visual
   const campos = [
-    { id: "nome",       val: nomeCliente },
-    { id: "data",       val: data },
-    { id: "horaInicio", val: horaInicio },
-    { id: "horaFim",    val: horaFim },
-    { id: "tipo",       val: tipo },
-    { id: "hunt",       val: hunt },
-    { id: "vocacao",    val: vocacao },
-    { id: "serviceiro", val: serviceiro }
+    {id:"nome",val:nome_cliente},{id:"data",val:data},
+    {id:"horaInicio",val:horaInicio},{id:"horaFim",val:horaFim},
+    {id:"tipo",val:tipo},{id:"hunt",val:hunt},
+    {id:"vocacao",val:vocacao},{id:"serviceiro",val:serviceiro}
   ];
-
   let temVazio = false;
   campos.forEach(c => {
     const el = document.getElementById(c.id);
-    if (!c.val) {
-      el.classList.add("campo-invalido");
-      temVazio = true;
-    } else {
-      el.classList.remove("campo-invalido");
-    }
+    if (!c.val) { el.classList.add("campo-invalido"); temVazio = true; }
+    else el.classList.remove("campo-invalido");
   });
-
-  if (temVazio) {
-    mostrarMensagem("⚠️ Preencha todos os campos obrigatórios.", "erro");
-    return;
-  }
-
+  if (temVazio) { mostrarMensagem("⚠️ Preencha todos os campos obrigatórios.", "erro"); return; }
 
   const inicio = new Date(data + "T" + horaInicio);
   const fim    = new Date(data + "T" + horaFim);
-  const agora  = new Date();
+  if (fim <= inicio) { mostrarMensagem("⚠️ Horário de fim deve ser após o início.", "erro"); return; }
+  if (inicio < new Date()) { mostrarMensagem("⚠️ Não é possível agendar no passado.", "erro"); return; }
 
-  if (fim <= inicio) {
-    mostrarMensagem("⚠️ Horário de fim deve ser após o início.", "erro");
-    return;
+  // Verifica conflito no Supabase
+  const existentes = await supaGet("agendamentos",
+    `serviceiro=eq.${encodeURIComponent(serviceiro)}&inicio=lte.${fim.toISOString()}&fim=gte.${inicio.toISOString()}`
+  );
+  if (existentes.length > 0) {
+    mostrarMensagem("⚠️ " + serviceiro + " já tem agendamento neste horário.", "erro"); return;
   }
 
-  if (inicio < agora) {
-    mostrarMensagem("⚠️ Não é possível agendar no passado.", "erro");
-    return;
-  }
-
-  // Verifica conflito para o mesmo serviceiro
-  const eventosSalvos = carregarEventos();
-  const conflito = eventosSalvos.some(ev => {
-    if (ev.serviceiro !== serviceiro) return false;
-    const evInicio = new Date(ev.inicio);
-    const evFim    = new Date(ev.fim);
-    return (
-      (inicio >= evInicio && inicio <  evFim) ||
-      (fim    >  evInicio && fim    <= evFim) ||
-      (inicio <= evInicio && fim    >= evFim)
-    );
+  // Salva no Supabase
+  const [novo] = await supaPost("agendamentos", {
+    nome_cliente, serviceiro, vocacao, tipo, hunt,
+    inicio: inicio.toISOString(), fim: fim.toISOString()
   });
-
-  if (conflito) {
-    mostrarMensagem("⚠️ " + serviceiro + " já tem agendamento neste horário.", "erro");
-    return;
-  }
-
-  const id = Date.now().toString();
 
   calendar.addEvent({
-    id,
-    title: serviceiro + " → " + nomeCliente + " (" + hunt + ")",
-    start: inicio,
-    end:   fim,
-    extendedProps: { id, nomeCliente, serviceiro, vocacao, tipo, hunt }
+    id:    novo.id,
+    title: serviceiro + " → " + nome_cliente + " (" + hunt + ")",
+    start: inicio, end: fim,
+    extendedProps: { id: novo.id, nome_cliente, serviceiro, vocacao, tipo, hunt }
   });
 
-  eventosSalvos.push({ id, nomeCliente, serviceiro, vocacao, tipo, hunt, inicio: inicio.toISOString(), fim: fim.toISOString() });
-  salvarEventos(eventosSalvos);
-
-  // Atualiza badges de disponibilidade
   verificarDisponibilidade(dataFiltroEl.value);
-
   mostrarMensagem("✅ Agendamento com " + serviceiro + " realizado!", "sucesso");
   e.target.reset();
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
 });
 
-
 // =========================================
-// CONTATOS
+// CONTATOS (Supabase)
 // =========================================
-const STORAGE_CONTATOS = "rubinot_contatos";
-
-const CONTATOS_PADRAO = [
-  { nome: "Fear",    vocacao: "Master Sorcerer", whats: "",  pix: "", discord: "" },
-  { nome: "Panic",   vocacao: "Master Sorcerer", whats: "",  pix: "", discord: "" },
-  { nome: "Cassinho",vocacao: "Multi",            whats: "",  pix: "", discord: "" },
-  { nome: "Murilo",  vocacao: "Multi",            whats: "",  pix: "", discord: "" },
-  { nome: "Paradox", vocacao: "Elite Knight",     whats: "",  pix: "", discord: "" },
-  { nome: "Raikess", vocacao: "Multi",            whats: "",  pix: "", discord: "" },
-  { nome: "Accid",   vocacao: "Royal Paladin",    whats: "",  pix: "", discord: "" }
-];
-
-function carregarContatos() {
-  const dados = localStorage.getItem(STORAGE_CONTATOS);
-  return dados ? JSON.parse(dados) : JSON.parse(JSON.stringify(CONTATOS_PADRAO));
-}
-
-function salvarContatos(contatos) {
-  localStorage.setItem(STORAGE_CONTATOS, JSON.stringify(contatos));
-}
-
-function renderizarContatos() {
-  const contatos = carregarContatos();
+async function renderizarContatos() {
   const container = document.getElementById("tabelaContatos");
+  container.innerHTML = `<div class="contato-row header">
+    <span>Nome</span><span>WhatsApp</span><span>Pix</span><span>Discord</span><span></span>
+  </div>`;
 
-  container.innerHTML = `
-    <div class="contato-row header">
-      <span>Nome</span>
-      <span>WhatsApp</span>
-      <span>Pix</span>
-      <span>Discord</span>
-      <span></span>
-    </div>
-  `;
+  try {
+    const contatos = await supaGet("contatos", "order=nome.asc");
+    contatos.forEach(c => {
+      const row = document.createElement("div");
+      row.className = "contato-row";
+      const isAdmin = tipoUsuario === "admin";
+      row.innerHTML = `
+        <span class="contato-nome">${c.nome}</span>
+        <span class="contato-info">${c.whats ? `<a href="https://wa.me/55${c.whats.replace(/[^0-9]/g,'')}" target="_blank">📱 ${c.whats}</a>` : "<em>—</em>"}</span>
+        <span class="contato-info">${c.pix || "<em>—</em>"}</span>
+        <span class="contato-info">${c.discord || "<em>—</em>"}</span>
+        <span>${isAdmin ? `<button class="btn-edit-contato" data-id="${c.id}" data-nome="${c.nome}" data-whats="${c.whats||''}" data-pix="${c.pix||''}" data-discord="${c.discord||''}">✏️</button>` : ""}</span>
+      `;
+      container.appendChild(row);
+    });
+  } catch(e) {
+    container.innerHTML += '<div style="padding:16px;color:rgba(232,223,192,0.4)">Erro ao carregar contatos.</div>';
+  }
 
-  contatos.forEach(c => {
-    const row = document.createElement("div");
-    row.className = "contato-row";
-    const isAdmin = tipoUsuario === "admin";
-
-    row.innerHTML = `
-      <span class="contato-nome">${c.nome}</span>
-      <span class="contato-info">${c.whats ? `<a href="https://wa.me/55${c.whats.replace(/[^0-9]/g,'')}" target="_blank">📱 ${c.whats}</a>` : '<em>—</em>'}</span>
-      <span class="contato-info">${c.pix || '<em>—</em>'}</span>
-      <span class="contato-info">${c.discord || '<em>—</em>'}</span>
-      <span>${isAdmin ? `<button class="btn-edit-contato" data-nome="${c.nome}">✏️</button>` : ''}</span>
-    `;
-    container.appendChild(row);
-  });
-
-  // Botões de edição
   document.querySelectorAll(".btn-edit-contato").forEach(btn => {
-    btn.addEventListener("click", () => abrirModalContato(btn.dataset.nome));
+    btn.addEventListener("click", () => {
+      document.getElementById("editNome").value    = btn.dataset.nome;
+      document.getElementById("editWhats").value   = btn.dataset.whats;
+      document.getElementById("editPix").value     = btn.dataset.pix;
+      document.getElementById("editDiscord").value = btn.dataset.discord;
+      document.getElementById("modalContato").dataset.id = btn.dataset.id;
+      document.getElementById("modalContato").style.display = "flex";
+    });
   });
-}
-
-function abrirModalContato(nome) {
-  const contatos = carregarContatos();
-  const c = contatos.find(x => x.nome === nome);
-  if (!c) return;
-  document.getElementById("editNome").value    = c.nome;
-  document.getElementById("editWhats").value   = c.whats    || "";
-  document.getElementById("editPix").value     = c.pix      || "";
-  document.getElementById("editDiscord").value = c.discord  || "";
-  document.getElementById("modalContato").style.display = "flex";
 }
 
 document.getElementById("btnFecharModal").addEventListener("click", () => {
   document.getElementById("modalContato").style.display = "none";
 });
 
-document.getElementById("btnSalvarContato").addEventListener("click", () => {
-  const nome    = document.getElementById("editNome").value;
+document.getElementById("modalContato").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("modalContato"))
+    document.getElementById("modalContato").style.display = "none";
+});
+
+document.getElementById("btnSalvarContato").addEventListener("click", async () => {
+  const id      = document.getElementById("modalContato").dataset.id;
   const whats   = document.getElementById("editWhats").value.trim();
   const pix     = document.getElementById("editPix").value.trim();
   const discord = document.getElementById("editDiscord").value.trim();
-  const contatos = carregarContatos();
-  const idx = contatos.findIndex(x => x.nome === nome);
-  if (idx !== -1) {
-    contatos[idx].whats   = whats;
-    contatos[idx].pix     = pix;
-    contatos[idx].discord = discord;
-    salvarContatos(contatos);
-  }
+  await supaPatch("contatos", id, { whats, pix, discord });
   document.getElementById("modalContato").style.display = "none";
   renderizarContatos();
-  mostrarMensagem("✅ Contato de " + nome + " atualizado!", "sucesso");
+  mostrarMensagem("✅ Contato atualizado!", "sucesso");
 });
 
-// Fecha modal clicando fora
-document.getElementById("modalContato").addEventListener("click", (e) => {
-  if (e.target === document.getElementById("modalContato")) {
-    document.getElementById("modalContato").style.display = "none";
-  }
-});
-
-// Botão admin editar contatos
-document.getElementById("btnEditarContatos").addEventListener("click", () => {
-  renderizarContatos();
-});
+document.getElementById("btnEditarContatos").addEventListener("click", renderizarContatos);
 
 // =========================================
-// PAGAMENTOS
+// PAGAMENTOS (Supabase + Upload)
 // =========================================
-const STORAGE_PAGAMENTOS = "rubinot_pagamentos";
+async function renderizarPagamentos() {
+  try {
+    const pags      = await supaGet("pagamentos", "order=criado_em.desc");
+    const analise   = pags.filter(p => p.status === "analise");
+    const aprovados = pags.filter(p => p.status === "aprovado");
+    const recusados = pags.filter(p => p.status === "recusado");
 
-function carregarPagamentos() {
-  const dados = localStorage.getItem(STORAGE_PAGAMENTOS);
-  return dados ? JSON.parse(dados) : [];
-}
+    function cardHTML(p) {
+      const isAdmin = tipoUsuario === "admin";
+      const imgHTML = p.comprovante_url
+        ? `<a href="${p.comprovante_url}" target="_blank" class="pg-comprovante">🖼️ Ver comprovante</a>`
+        : "";
+      const acoes = (isAdmin && p.status === "analise") ? `
+        <div class="pg-acoes">
+          <button class="btn-aprovar" data-id="${p.id}">✅ Aprovar</button>
+          <button class="btn-recusar" data-id="${p.id}">❌ Recusar</button>
+        </div>` : "";
+      const btnExcluir = isAdmin
+        ? `<button class="btn-recusar" style="margin-top:6px;width:100%" data-excluir="${p.id}">🗑️ Excluir</button>`
+        : "";
+      return `
+        <div class="pagamento-card">
+          <div class="pg-nome">${p.nome}</div>
+          <div class="pg-detail">Serviceiro: ${p.serviceiro}</div>
+          <div class="pg-detail">Data: ${p.data}</div>
+          ${p.obs ? `<div class="pg-detail">Obs: ${p.obs}</div>` : ""}
+          <div class="pg-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div>
+          ${imgHTML}
+          ${acoes}
+          ${btnExcluir}
+        </div>`;
+    }
 
-function salvarPagamentos(pags) {
-  localStorage.setItem(STORAGE_PAGAMENTOS, JSON.stringify(pags));
-}
+    document.getElementById("listaAnalise").innerHTML   = analise.length   ? analise.map(cardHTML).join("")   : '<div class="vazio-msg">Nenhum pagamento</div>';
+    document.getElementById("listaAprovados").innerHTML = aprovados.length ? aprovados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum aprovado</div>';
+    document.getElementById("listaRecusados").innerHTML = recusados.length ? recusados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum recusado</div>';
 
-function renderizarPagamentos() {
-  const pags = carregarPagamentos();
-  const analise   = pags.filter(p => p.status === "analise");
-  const aprovados = pags.filter(p => p.status === "aprovado");
-  const recusados = pags.filter(p => p.status === "recusado");
+    document.querySelectorAll(".btn-aprovar").forEach(btn =>
+      btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "aprovado")));
+    document.querySelectorAll(".btn-recusar[data-id]").forEach(btn =>
+      btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "recusado")));
+    document.querySelectorAll("[data-excluir]").forEach(btn =>
+      btn.addEventListener("click", async () => {
+        if (confirm("Excluir este pagamento?")) {
+          await supaDelete("pagamentos", btn.dataset.excluir);
+          renderizarPagamentos();
+          mostrarMensagem("🗑️ Pagamento excluído!", "sucesso");
+        }
+      }));
 
-  function cardHTML(p) {
-    const isAdmin = tipoUsuario === "admin";
-    const acoes = (isAdmin && p.status === "analise") ? `
-      <div class="pg-acoes">
-        <button class="btn-aprovar" data-id="${p.id}">✅ Aprovar</button>
-        <button class="btn-recusar" data-id="${p.id}">❌ Recusar</button>
-      </div>` : "";
-    const btnExcluir = (isAdmin) ? `<button class="btn-recusar" style="margin-top:6px;width:100%" data-excluir="${p.id}">🗑️ Excluir</button>` : "";
-    return `
-      <div class="pagamento-card">
-        <div class="pg-nome">${p.nome}</div>
-        <div class="pg-detail">Serviceiro: ${p.serviceiro}</div>
-        <div class="pg-detail">Data: ${p.data} | Pix: ${p.comprovante}</div>
-        ${p.obs ? `<div class="pg-detail">Obs: ${p.obs}</div>` : ""}
-        <div class="pg-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div>
-        ${acoes}
-        ${btnExcluir}
-      </div>`;
-  }
-
-  const listaAnalise   = document.getElementById("listaAnalise");
-  const listaAprovados = document.getElementById("listaAprovados");
-  const listaRecusados = document.getElementById("listaRecusados");
-
-  listaAnalise.innerHTML   = analise.length   ? analise.map(cardHTML).join("")   : '<div class="vazio-msg">Nenhum pagamento</div>';
-  listaAprovados.innerHTML = aprovados.length ? aprovados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum aprovado</div>';
-  listaRecusados.innerHTML = recusados.length ? recusados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum recusado</div>';
-
-  // Botões aprovar/recusar/excluir
-  document.querySelectorAll(".btn-aprovar").forEach(btn => {
-    btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "aprovado"));
-  });
-  document.querySelectorAll(".btn-recusar[data-id]").forEach(btn => {
-    btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "recusado"));
-  });
-  document.querySelectorAll("[data-excluir]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      if (confirm("Excluir este pagamento?")) {
-        const pags = carregarPagamentos().filter(p => p.id !== btn.dataset.excluir);
-        salvarPagamentos(pags);
-        renderizarPagamentos();
-        mostrarMensagem("🗑️ Pagamento excluído!", "sucesso");
-      }
-    });
-  });
-}
-
-function alterarStatusPagamento(id, novoStatus) {
-  const pags = carregarPagamentos();
-  const idx  = pags.findIndex(p => p.id === id);
-  if (idx !== -1) {
-    pags[idx].status = novoStatus;
-    salvarPagamentos(pags);
-    renderizarPagamentos();
-    mostrarMensagem(novoStatus === "aprovado" ? "✅ Pagamento aprovado!" : "❌ Pagamento recusado!", novoStatus === "aprovado" ? "sucesso" : "erro");
+  } catch(e) {
+    console.error("Erro ao carregar pagamentos:", e);
   }
 }
 
-// Mostrar/ocultar form de pagamento
+async function alterarStatusPagamento(id, novoStatus) {
+  await supaPatch("pagamentos", id, { status: novoStatus });
+  renderizarPagamentos();
+  mostrarMensagem(novoStatus === "aprovado" ? "✅ Pagamento aprovado!" : "❌ Pagamento recusado!",
+    novoStatus === "aprovado" ? "sucesso" : "erro");
+}
+
 document.getElementById("btnNovoPagamento").addEventListener("click", () => {
   const form = document.getElementById("formPagamento");
   form.style.display = form.style.display === "none" ? "block" : "none";
 });
 
-document.getElementById("btnEnviarPagamento").addEventListener("click", () => {
-  const nome        = document.getElementById("pgNome").value.trim();
-  const serviceiro  = document.getElementById("pgServiceiro").value.trim();
-  const data        = document.getElementById("pgData").value;
-  const valor       = document.getElementById("pgValor").value;
-  const comprovante = document.getElementById("pgComprovante").value.trim();
-  const obs         = document.getElementById("pgObs").value.trim();
+document.getElementById("btnEnviarPagamento").addEventListener("click", async () => {
+  const nome       = document.getElementById("pgNome").value.trim();
+  const serviceiro = document.getElementById("pgServiceiro").value.trim();
+  const data       = document.getElementById("pgData").value;
+  const valor      = document.getElementById("pgValor").value;
+  const obs        = document.getElementById("pgObs").value.trim();
+  const arquivo    = document.getElementById("pgArquivo").files[0];
 
-  if (!nome || !serviceiro || !data || !valor || !comprovante) {
-    mostrarMensagem("⚠️ Preencha todos os campos obrigatórios.", "erro");
-    return;
+  if (!nome || !serviceiro || !data || !valor || !arquivo) {
+    mostrarMensagem("⚠️ Preencha todos os campos e anexe o comprovante.", "erro"); return;
   }
 
-  const pags = carregarPagamentos();
-  pags.push({ id: Date.now().toString(), nome, serviceiro, data, valor, comprovante, obs, status: "analise" });
-  salvarPagamentos(pags);
+  mostrarMensagem("⏳ Enviando comprovante...", "sucesso");
+
+  // Upload do arquivo
+  const ext  = arquivo.name.split(".").pop();
+  const path = `${Date.now()}_${nome.replace(/\s/g,"_")}.${ext}`;
+  let comprovante_url = "";
+
+  try {
+    comprovante_url = await supaUpload("comprovantes", path, arquivo);
+  } catch(e) {
+    mostrarMensagem("⚠️ Erro no upload do comprovante.", "erro"); return;
+  }
+
+  await supaPost("pagamentos", { nome, serviceiro, data, valor: parseFloat(valor), obs, comprovante_url, status: "analise" });
   renderizarPagamentos();
   mostrarMensagem("📤 Pagamento enviado para análise!", "sucesso");
   document.getElementById("formPagamento").style.display = "none";
-
-  // Limpa campos
-  ["pgNome","pgServiceiro","pgData","pgValor","pgComprovante","pgObs"].forEach(id => {
-    document.getElementById(id).value = "";
-  });
+  ["pgNome","pgServiceiro","pgData","pgValor","pgObs"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("pgArquivo").value = "";
 });
 
-// Inicializa contatos e pagamentos ao carregar
+// Preview do arquivo antes de enviar
+document.getElementById("pgArquivo").addEventListener("change", (e) => {
+  const file    = e.target.files[0];
+  const preview = document.getElementById("uploadPreview");
+  preview.innerHTML = "";
+  if (!file) return;
+  if (file.type.startsWith("image/")) {
+    const img = document.createElement("img");
+    img.src   = URL.createObjectURL(file);
+    preview.appendChild(img);
+  } else {
+    preview.innerHTML = `<span style="font-size:13px;color:rgba(232,223,192,0.6)">📄 ${file.name}</span>`;
+  }
+});
+
+// Inicializa
 renderizarContatos();
 renderizarPagamentos();
