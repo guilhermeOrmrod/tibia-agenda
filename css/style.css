@@ -1,153 +1,389 @@
 /* =========================================
-   style.css — Agenda Rubinot Panic
+   style.css — Fatal Services · Rubinot
    ========================================= */
 
-/* ── Base ── */
+:root {
+  --gold:      #c9a84c;
+  --gold-light:#f0d080;
+  --dark:      #0a0a0f;
+  --dark2:     #12121a;
+  --dark3:     #1a1a2a;
+  --panel:     rgba(18,18,26,0.92);
+  --border:    rgba(201,168,76,0.25);
+  --ms-color:  #e05a3a;
+  --ed-color:  #4caf6e;
+  --ek-color:  #5b8dd9;
+  --rp-color:  #d4a017;
+  --em-color:  #9b59b6;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
   background: url('https://wallpaper.forfun.com/fetch/09/0977c6fe99720911613eeb97a7d8ae6f.jpeg') no-repeat center center fixed;
   background-size: cover;
-  color: #f8fafc;
-  font-family: Arial, sans-serif;
-  padding: 20px;
-  margin: 0;
+  color: #e8dfc0;
+  font-family: 'Crimson Text', Georgia, serif;
+  min-height: 100vh;
 }
 
-h1 {
-  margin: 0 0 20px 0;
-  font-size: 24px;
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(5,5,10,0.72);
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* ── Mensagem de feedback ── */
+/* ── Header ── */
+header {
+  position: relative;
+  z-index: 10;
+  background: rgba(8,8,14,0.95);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 64px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon { font-size: 28px; }
+
+.logo h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.logo-sub {
+  font-size: 11px;
+  color: rgba(201,168,76,0.55);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+nav { display: flex; gap: 4px; margin-left: auto; }
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(232,223,192,0.55);
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  padding: 6px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  width: auto;
+}
+
+.nav-btn:hover { color: var(--gold); border-color: var(--border); }
+.nav-btn.active { color: var(--gold); border-color: var(--gold); background: rgba(201,168,76,0.08); }
+
+/* ── Login no header ── */
+#loginBox { display: flex; align-items: center; }
+#loginArea { display: flex; gap: 6px; align-items: center; }
+#loginArea input {
+  width: 110px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: #e8dfc0;
+  font-size: 13px;
+}
+#loginArea button, #logoutBtn {
+  padding: 6px 14px;
+  background: var(--gold);
+  color: #0a0a0f;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  width: auto;
+  transition: background 0.2s;
+}
+#loginArea button:hover, #logoutBtn:hover { background: var(--gold-light); }
+#userArea { display: none; align-items: center; gap: 10px; }
+#usuarioLogado { font-size: 13px; color: var(--gold); }
+
+/* ── Mensagem ── */
 #mensagem {
-  margin: 15px auto;
+  position: relative;
+  z-index: 10;
+  margin: 12px auto;
   max-width: 900px;
   text-align: center;
-  font-weight: bold;
-  padding: 10px;
-  border-radius: 8px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 6px;
   display: none;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
 }
+.erro    { background: rgba(180,30,30,0.85); color: #fff; border: 1px solid #e05a5a; }
+.sucesso { background: rgba(30,120,60,0.85); color: #fff; border: 1px solid #4caf6e; }
+#fecharMsg { margin-left: 10px; background: rgba(255,255,255,0.2); color: #fff; border: none; border-radius: 4px; cursor: pointer; padding: 2px 8px; width: auto; font-size: 12px; }
 
-.erro    { background: #dc2626cc; color: #fff; }
-.sucesso { background: #16a34acc; color: #fff; }
+/* ── Tabs ── */
+.tab-content { display: none; position: relative; z-index: 1; }
+.tab-content.active { display: block; }
 
-#fecharMsg {
-  margin-left: 10px;
-  background: #444;
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  padding: 2px 6px;
-  width: auto;
-}
-
-/* ── Login ── */
-#loginBox {
-  background: #1e293bcc;
-  padding: 15px;
-  border-radius: 8px;
-  width: 240px;
-  margin-bottom: 20px;
-}
-
-#loginBox h3 {
-  margin: 0 0 10px 0;
-  font-size: 16px;
-  color: #fff;
-  text-align: center;
-}
-
-#loginArea {
-  text-align: center;
-}
-
-#loginArea input {
-  width: 120px;
-  padding: 5px;
-  border-radius: 5px;
-  border: none;
-}
-
-#loginArea button {
-  padding: 5px 10px;
-  border-radius: 5px;
-  border: none;
-  background: #9333ea;
-  color: #fff;
-  cursor: pointer;
-  margin-left: 5px;
-  width: auto;
-}
-
-#loginArea button:hover { background: #7e22ce; }
-
-#userArea {
-  text-align: center;
-  display: none;
-}
-
-#usuarioLogado {
-  margin-right: 10px;
-  font-weight: bold;
-}
-
-/* ── Container principal ── */
-#container {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+/* ── Seção Serviceiros ── */
+.section-header {
   max-width: 1200px;
-  margin: 20px auto;
+  margin: 28px auto 20px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-/* ── Formulário ── */
-#formAgendamento {
-  width: 100%;
-  margin-bottom: 20px;
-  background: #1e293bcc;
-  padding: 20px;
-  border-radius: 12px;
-  display: none;
-  box-sizing: border-box;
+.section-header h2 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 22px;
+  letter-spacing: 2px;
 }
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(232,223,192,0.7);
+}
+
+.date-filter input {
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: #e8dfc0;
+  font-size: 13px;
+  width: auto;
+}
+
+/* ── Grid de vocações ── */
+.vocacoes-grid {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.vocacao-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.vocacao-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.vocacao-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.vocacao-header h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.vocacao-icon { font-size: 20px; }
+
+.ms { border-left: 3px solid var(--ms-color); }
+.ms h3 { color: var(--ms-color); }
+.ed { border-left: 3px solid var(--ed-color); }
+.ed h3 { color: var(--ed-color); }
+.ek { border-left: 3px solid var(--ek-color); }
+.ek h3 { color: var(--ek-color); }
+.rp { border-left: 3px solid var(--rp-color); }
+.rp h3 { color: var(--rp-color); }
+.em { border-left: 3px solid var(--em-color); }
+.em h3 { color: var(--em-color); }
+
+.serviceiros-list {
+  list-style: none;
+  padding: 8px 0;
+}
+
+.serviceiros-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(201,168,76,0.08);
+  transition: background 0.15s;
+}
+
+.serviceiros-list li:last-child { border-bottom: none; }
+.serviceiros-list li:hover { background: rgba(201,168,76,0.05); }
+
+.serviceiros-list .nome {
+  font-size: 15px;
+  color: #e8dfc0;
+}
+
+.badge {
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.badge.disponivel {
+  background: rgba(76,175,110,0.18);
+  color: #4caf6e;
+  border: 1px solid rgba(76,175,110,0.35);
+}
+
+.badge.ocupado {
+  background: rgba(224,90,58,0.18);
+  color: #e05a3a;
+  border: 1px solid rgba(224,90,58,0.35);
+}
+
+.badge.verificando {
+  background: rgba(201,168,76,0.1);
+  color: rgba(201,168,76,0.6);
+  border: 1px solid rgba(201,168,76,0.2);
+}
+
+/* ── Seção Agenda ── */
+#tab-agenda {
+  max-width: 1200px;
+  margin: 28px auto 40px;
+  padding: 0 24px;
+}
+
+#formAgendamento {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 24px;
+  display: none;
+  backdrop-filter: blur(8px);
+}
+
+#formAgendamento h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 16px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+input, select {
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: #e8dfc0;
+  font-family: 'Crimson Text', serif;
+  font-size: 15px;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+select option { background: #12121a; }
+
+button[type="submit"] {
+  background: var(--gold);
+  color: #0a0a0f;
+  border: none;
+  border-radius: 6px;
+  padding: 11px 28px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.2s, transform 0.1s;
+}
+
+button[type="submit"]:hover { background: var(--gold-light); transform: translateY(-1px); }
 
 /* ── Calendário ── */
 #calendar {
-  width: 100%;
-  background: #1e293bcc;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   padding: 20px;
-  border-radius: 12px;
-  box-sizing: border-box;
+  backdrop-filter: blur(8px);
 }
 
-/* ── Inputs, selects e botões globais ── */
-input, select {
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-button {
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-  width: 100%;
-  background: #9333ea;
-  color: white;
-  cursor: pointer;
-}
-
-button:hover { background: #7e22ce; }
+.fc { color: #e8dfc0; }
+.fc-toolbar-title { font-family: 'Cinzel', serif !important; color: var(--gold) !important; font-size: 18px !important; }
+.fc-button { background: rgba(201,168,76,0.15) !important; border-color: var(--border) !important; color: var(--gold) !important; font-family: 'Cinzel', serif !important; }
+.fc-button:hover { background: rgba(201,168,76,0.3) !important; }
+.fc-button-active { background: rgba(201,168,76,0.35) !important; }
+.fc-daygrid-day { background: transparent !important; }
+.fc-daygrid-day:hover { background: rgba(201,168,76,0.04) !important; }
+.fc-col-header-cell { background: rgba(201,168,76,0.08) !important; }
+.fc-col-header-cell-cushion { color: var(--gold) !important; font-family: 'Cinzel', serif !important; font-size: 12px !important; }
+.fc-daygrid-day-number { color: rgba(232,223,192,0.7) !important; }
+.fc-day-today { background: rgba(201,168,76,0.07) !important; }
+.fc-event { border-radius: 4px !important; border: none !important; font-size: 11px !important; }
 
 /* ── Responsivo ── */
-@media (max-width: 600px) {
-  h1 { font-size: 18px; }
-  #loginBox { width: 100%; }
+@media (max-width: 700px) {
+  .header-inner { height: auto; padding: 12px 0; gap: 10px; }
+  .logo h1 { font-size: 16px; }
+  nav { order: 3; width: 100%; }
+  #loginBox { order: 2; margin-left: auto; }
+  .vocacoes-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 480px) {
+  .vocacoes-grid { grid-template-columns: 1fr; }
 }

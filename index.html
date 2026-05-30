@@ -3,73 +3,158 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agenda de Serviços Rubinot - Panic</title>
-
-  <!-- Biblioteca do calendário -->
+  <title>Fatal Services - Rubinot</title>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-
-  <!-- CSS do projeto -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <h1>📅 Agenda de Serviços Rubinot - Panic</h1>
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚔️</span>
+        <div>
+          <h1>Fatal Services</h1>
+          <span class="logo-sub">Rubinot · Panic</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-tab="serviceiros">Serviceiros</button>
+        <button class="nav-btn" data-tab="agenda">Agenda</button>
+      </nav>
+      <div id="loginBox">
+        <div id="loginArea">
+          <input type="password" id="senha" placeholder="Senha">
+          <button id="loginBtn">Entrar</button>
+        </div>
+        <div id="userArea">
+          <span id="usuarioLogado"></span>
+          <button id="logoutBtn">Sair</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
   <div id="mensagem"></div>
 
-  <!-- Login -->
-  <div id="loginBox">
-    <h3>Login</h3>
-    <div id="loginArea">
-      <input type="password" id="senha" placeholder="Senha">
-      <button id="loginBtn">Entrar</button>
+  <!-- ABA: Serviceiros -->
+  <section id="tab-serviceiros" class="tab-content active">
+    <div class="section-header">
+      <h2>Serviceiros Disponíveis</h2>
+      <div class="date-filter">
+        <label>Ver disponibilidade em:</label>
+        <input type="date" id="dataFiltro">
+      </div>
     </div>
-    <div id="userArea">
-      <span id="usuarioLogado"></span>
-      <button id="logoutBtn">Sair</button>
+
+    <div class="vocacoes-grid">
+
+      <div class="vocacao-card">
+        <div class="vocacao-header ms">
+          <span class="vocacao-icon">🔥</span>
+          <h3>Master Sorcerer</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Master Sorcerer">
+          <li data-nome="Fear"><span class="nome">Fear</span><span class="badge">verificando...</span></li>
+          <li data-nome="Panic"><span class="nome">Panic</span><span class="badge">verificando...</span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span></li>
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header ed">
+          <span class="vocacao-icon">🌿</span>
+          <h3>Elder Druid</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Elder Druid">
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span></li>
+          <li data-nome="Panic"><span class="nome">Panic</span><span class="badge">verificando...</span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header ek">
+          <span class="vocacao-icon">🛡️</span>
+          <h3>Elite Knight</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Elite Knight">
+          <li data-nome="Paradox"><span class="nome">Paradox</span><span class="badge">verificando...</span></li>
+          <li data-nome="Raikess"><span class="nome">Raikess</span><span class="badge">verificando...</span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span></li>
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header rp">
+          <span class="vocacao-icon">🏹</span>
+          <h3>Royal Paladin</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Royal Paladin">
+          <li data-nome="Accid"><span class="nome">Accid</span><span class="badge">verificando...</span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span></li>
+          <li data-nome="Raikess"><span class="nome">Raikess</span><span class="badge">verificando...</span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header em">
+          <span class="vocacao-icon">☯️</span>
+          <h3>Exalted Monk</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Exalted Monk">
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span></li>
+        </ul>
+      </div>
+
     </div>
-  </div>
+  </section>
 
-  <!-- Conteúdo principal -->
-  <div id="container">
+  <!-- ABA: Agenda -->
+  <section id="tab-agenda" class="tab-content">
 
-    <!-- Formulário de agendamento -->
     <form id="formAgendamento">
-      <input type="text" id="nome"       placeholder="Seu nome" required>
-      <input type="date" id="data"       required>
-      <input type="time" id="horaInicio" required>
-      <input type="time" id="horaFim"    required>
-
-      <select id="tipo" required>
-        <option value="">Selecione o tipo</option>
-        <option value="Solo">Solo</option>
-        <option value="PT">PT</option>
-      </select>
-
-      <select id="hunt" required>
-        <option value="">Selecione o hunt</option>
-        <option value="RottenBlood">RottenBlood</option>
-        <option value="Soulwar">Soulwar</option>
-        <option value="Gnomprona">Gnomprona</option>
-        <option value="Crypt">Crypt</option>
-      </select>
-
-      <select id="vocacao" required>
-        <option value="">Selecione a vocação</option>
-        <option value="Knight">Knight</option>
-        <option value="Paladin">Paladin</option>
-        <option value="Sorcerer">Sorcerer</option>
-        <option value="Druid">Druid</option>
-      </select>
-
-      <button type="submit">Agendar</button>
+      <h3>Novo Agendamento</h3>
+      <div class="form-grid">
+        <input type="text" id="nome" placeholder="Seu nome" required>
+        <input type="date" id="data" required>
+        <input type="time" id="horaInicio" required>
+        <input type="time" id="horaFim" required>
+        <select id="tipo" required>
+          <option value="">Tipo</option>
+          <option value="Solo">Solo</option>
+          <option value="PT">PT</option>
+        </select>
+        <select id="hunt" required>
+          <option value="">Hunt</option>
+          <option value="RottenBlood">RottenBlood</option>
+          <option value="Soulwar">Soulwar</option>
+          <option value="Gnomprona">Gnomprona</option>
+          <option value="Crypt">Crypt</option>
+        </select>
+        <select id="vocacao" required>
+          <option value="">Vocação do serviceiro</option>
+          <option value="Master Sorcerer">Master Sorcerer</option>
+          <option value="Elder Druid">Elder Druid</option>
+          <option value="Elite Knight">Elite Knight</option>
+          <option value="Royal Paladin">Royal Paladin</option>
+          <option value="Exalted Monk">Exalted Monk</option>
+        </select>
+        <select id="serviceiro" required>
+          <option value="">Serviceiro</option>
+        </select>
+      </div>
+      <button type="submit">⚔️ Agendar</button>
     </form>
 
     <div id="calendar"></div>
-  </div>
+  </section>
 
-  <!-- JavaScript do projeto (sempre no final do body) -->
   <script src="js/script.js"></script>
-
 </body>
 </html>

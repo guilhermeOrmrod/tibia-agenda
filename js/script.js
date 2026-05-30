@@ -1,20 +1,15 @@
 // =========================================
-// script.js — Agenda Rubinot Panic
+// script.js — Fatal Services · Rubinot
 // =========================================
 
-
-// ── Mensagens de feedback ──────────────────
-const mensagemEl = document.getElementById("mensagem");
-
-function mostrarMensagem(texto, tipo) {
-  mensagemEl.innerHTML = texto + ' <button id="fecharMsg">X</button>';
-  mensagemEl.className = tipo;
-  mensagemEl.style.display = "block";
-  document.getElementById("fecharMsg").addEventListener("click", () => {
-    mensagemEl.style.display = "none";
-  });
-}
-
+// ── Dados dos serviceiros por vocação ─────
+const SERVICEIROS = {
+  "Master Sorcerer": ["Fear", "Panic", "Cassinho", "Murilo"],
+  "Elder Druid":     ["Murilo", "Cassinho", "Panic"],
+  "Elite Knight":    ["Paradox", "Raikess", "Cassinho", "Murilo"],
+  "Royal Paladin":   ["Accid", "Cassinho", "Raikess"],
+  "Exalted Monk":    ["Murilo"]
+};
 
 // ── Persistência (localStorage) ───────────
 const STORAGE_KEY = "rubinot_agendamentos";
@@ -28,6 +23,80 @@ function carregarEventos() {
   return dados ? JSON.parse(dados) : [];
 }
 
+// ── Mensagens de feedback ──────────────────
+const mensagemEl = document.getElementById("mensagem");
+
+function mostrarMensagem(texto, tipo) {
+  mensagemEl.innerHTML = texto + ' <button id="fecharMsg">X</button>';
+  mensagemEl.className = tipo;
+  mensagemEl.style.display = "block";
+  document.getElementById("fecharMsg").addEventListener("click", () => {
+    mensagemEl.style.display = "none";
+  });
+}
+
+// ── Navegação entre abas ───────────────────
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ── Lógica de disponibilidade ──────────────
+// Define a data do filtro como hoje por padrão
+const dataFiltroEl = document.getElementById("dataFiltro");
+const hoje = new Date().toISOString().split("T")[0];
+dataFiltroEl.value = hoje;
+
+function verificarDisponibilidade(dataSelecionada) {
+  const eventos = carregarEventos();
+
+  // Para cada li de serviceiro na página
+  document.querySelectorAll(".serviceiros-list li").forEach(li => {
+    const nome  = li.dataset.nome;
+    const badge = li.querySelector(".badge");
+
+    // Verifica se o serviceiro tem agendamento nessa data
+    const ocupado = eventos.some(ev => {
+      const dataEvento = ev.inicio.split("T")[0];
+      return ev.nome === nome && dataEvento === dataSelecionada;
+    });
+
+    if (ocupado) {
+      badge.textContent = "Ocupado";
+      badge.className   = "badge ocupado";
+    } else {
+      badge.textContent = "Disponível";
+      badge.className   = "badge disponivel";
+    }
+  });
+}
+
+// Verifica ao carregar e ao mudar a data
+verificarDisponibilidade(dataFiltroEl.value);
+dataFiltroEl.addEventListener("change", () => {
+  verificarDisponibilidade(dataFiltroEl.value);
+});
+
+// ── Select dinâmico: serviceiro por vocação ─
+const vocacaoEl   = document.getElementById("vocacao");
+const servicEireEl = document.getElementById("serviceiro");
+
+vocacaoEl.addEventListener("change", () => {
+  const vocacao = vocacaoEl.value;
+  servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
+  if (vocacao && SERVICEIROS[vocacao]) {
+    SERVICEIROS[vocacao].forEach(nome => {
+      const opt  = document.createElement("option");
+      opt.value  = nome;
+      opt.textContent = nome;
+      servicEireEl.appendChild(opt);
+    });
+  }
+});
 
 // ── Calendário ────────────────────────────
 const calendarEl = document.getElementById("calendar");
@@ -40,19 +109,21 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
   eventClick: function (info) {
     const ep = info.event.extendedProps;
     const detalhes =
-      "📌 " + ep.nome +
-      " | Tipo: "    + ep.tipo +
-      " | Hunt: "    + ep.hunt +
-      " | Vocação: " + ep.vocacao +
-      "\nInício: "   + info.event.start.toLocaleString("pt-BR") +
-      " | Fim: "     + info.event.end.toLocaleString("pt-BR");
+      "📌 " + ep.nomeCliente +
+      " | Serviceiro: " + ep.serviceiro +
+      " | " + ep.vocacao +
+      " | Tipo: " + ep.tipo +
+      " | Hunt: " + ep.hunt +
+      "\nInício: " + info.event.start.toLocaleString("pt-BR") +
+      " | Fim: "  + info.event.end.toLocaleString("pt-BR");
 
     if (tipoUsuario === "admin") {
       if (confirm(detalhes + "\n\nDeseja excluir este agendamento?")) {
         info.event.remove();
         const salvos = carregarEventos().filter(ev => ev.id !== ep.id);
         salvarEventos(salvos);
-        mostrarMensagem("🗑️ Evento excluído com sucesso!", "sucesso");
+        verificarDisponibilidade(dataFiltroEl.value);
+        mostrarMensagem("🗑️ Agendamento excluído!", "sucesso");
       } else {
         mostrarMensagem(detalhes.replace(/\n/g, " "), "sucesso");
       }
@@ -66,21 +137,18 @@ const calendar = new FullCalendar.Calendar(calendarEl, {
 
 calendar.render();
 
-// Carrega eventos salvos ao abrir a página
+// Carrega eventos salvos
 carregarEventos().forEach(ev => {
   calendar.addEvent({
     id:    ev.id,
-    title: ev.nome + " — " + ev.tipo + " / " + ev.hunt + " (" + ev.vocacao + ")",
+    title: ev.serviceiro + " → " + ev.nomeCliente + " (" + ev.hunt + ")",
     start: ev.inicio,
     end:   ev.fim,
-    extendedProps: { id: ev.id, nome: ev.nome, tipo: ev.tipo, hunt: ev.hunt, vocacao: ev.vocacao }
+    extendedProps: { id: ev.id, nomeCliente: ev.nomeCliente, serviceiro: ev.serviceiro, vocacao: ev.vocacao, tipo: ev.tipo, hunt: ev.hunt }
   });
 });
 
-
 // ── Autenticação ──────────────────────────
-// Atenção: senhas no front-end são visíveis
-// no DevTools. Ok para uso pessoal entre amigos.
 const SENHA_ADMIN   = "admin123";
 const SENHA_CLIENTE = "cliente123";
 let tipoUsuario = null;
@@ -93,16 +161,16 @@ document.getElementById("loginBtn").addEventListener("click", () => {
     mostrarMensagem("✅ Logado como ADMIN", "sucesso");
     document.getElementById("formAgendamento").style.display = "block";
     document.getElementById("loginArea").style.display       = "none";
-    document.getElementById("userArea").style.display        = "block";
-    document.getElementById("usuarioLogado").textContent     = "👤 ADMIN";
+    document.getElementById("userArea").style.display        = "flex";
+    document.getElementById("usuarioLogado").textContent     = "⚔️ ADMIN";
 
   } else if (senha === SENHA_CLIENTE) {
     tipoUsuario = "cliente";
     mostrarMensagem("✅ Logado como CLIENTE", "sucesso");
     document.getElementById("formAgendamento").style.display = "block";
     document.getElementById("loginArea").style.display       = "none";
-    document.getElementById("userArea").style.display        = "block";
-    document.getElementById("usuarioLogado").textContent     = "👤 CLIENTE";
+    document.getElementById("userArea").style.display        = "flex";
+    document.getElementById("usuarioLogado").textContent     = "🗡️ CLIENTE";
 
   } else {
     mostrarMensagem("⚠️ Senha incorreta!", "erro");
@@ -112,12 +180,11 @@ document.getElementById("loginBtn").addEventListener("click", () => {
 document.getElementById("logoutBtn").addEventListener("click", () => {
   tipoUsuario = null;
   document.getElementById("formAgendamento").style.display = "none";
-  document.getElementById("loginArea").style.display       = "block";
+  document.getElementById("loginArea").style.display       = "flex";
   document.getElementById("userArea").style.display        = "none";
   document.getElementById("senha").value                   = "";
   mostrarMensagem("Saiu da conta.", "sucesso");
 });
-
 
 // ── Formulário de agendamento ─────────────
 document.getElementById("formAgendamento").addEventListener("submit", (e) => {
@@ -128,16 +195,16 @@ document.getElementById("formAgendamento").addEventListener("submit", (e) => {
     return;
   }
 
-  const nome       = document.getElementById("nome").value.trim();
-  const data       = document.getElementById("data").value;
-  const horaInicio = document.getElementById("horaInicio").value;
-  const horaFim    = document.getElementById("horaFim").value;
-  const tipo       = document.getElementById("tipo").value;
-  const hunt       = document.getElementById("hunt").value;
-  const vocacao    = document.getElementById("vocacao").value;
+  const nomeCliente = document.getElementById("nome").value.trim();
+  const data        = document.getElementById("data").value;
+  const horaInicio  = document.getElementById("horaInicio").value;
+  const horaFim     = document.getElementById("horaFim").value;
+  const tipo        = document.getElementById("tipo").value;
+  const hunt        = document.getElementById("hunt").value;
+  const vocacao     = document.getElementById("vocacao").value;
+  const serviceiro  = document.getElementById("serviceiro").value;
 
-  // Validação de campos
-  if (!nome || !data || !horaInicio || !horaFim || !tipo || !hunt || !vocacao) {
+  if (!nomeCliente || !data || !horaInicio || !horaFim || !tipo || !hunt || !vocacao || !serviceiro) {
     mostrarMensagem("⚠️ Preencha todos os campos.", "erro");
     return;
   }
@@ -146,62 +213,51 @@ document.getElementById("formAgendamento").addEventListener("submit", (e) => {
   const fim    = new Date(data + "T" + horaFim);
   const agora  = new Date();
 
-  if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) {
-    mostrarMensagem("⚠️ Data ou horário inválido.", "erro");
-    return;
-  }
-
   if (fim <= inicio) {
-    mostrarMensagem("⚠️ O horário de fim deve ser após o início.", "erro");
+    mostrarMensagem("⚠️ Horário de fim deve ser após o início.", "erro");
     return;
   }
 
   if (inicio < agora) {
-    mostrarMensagem("⚠️ Não é possível agendar em datas/horários anteriores ao atual.", "erro");
+    mostrarMensagem("⚠️ Não é possível agendar no passado.", "erro");
     return;
   }
 
-  // Verifica conflito de horários
-  const conflito = calendar.getEvents().some(ev => {
+  // Verifica conflito para o mesmo serviceiro
+  const eventosSalvos = carregarEventos();
+  const conflito = eventosSalvos.some(ev => {
+    if (ev.serviceiro !== serviceiro) return false;
+    const evInicio = new Date(ev.inicio);
+    const evFim    = new Date(ev.fim);
     return (
-      (inicio >= ev.start && inicio <  ev.end) ||
-      (fim    >  ev.start && fim    <= ev.end) ||
-      (inicio <= ev.start && fim    >= ev.end)
+      (inicio >= evInicio && inicio <  evFim) ||
+      (fim    >  evInicio && fim    <= evFim) ||
+      (inicio <= evInicio && fim    >= evFim)
     );
   });
 
   if (conflito) {
-    mostrarMensagem("⚠️ Já existe um agendamento neste horário.", "erro");
+    mostrarMensagem("⚠️ " + serviceiro + " já tem agendamento neste horário.", "erro");
     return;
   }
 
-  // ID único para permitir exclusão futura
   const id = Date.now().toString();
 
-  // Adiciona no calendário
   calendar.addEvent({
     id,
-    title: nome + " — " + tipo + " / " + hunt + " (" + vocacao + ")",
+    title: serviceiro + " → " + nomeCliente + " (" + hunt + ")",
     start: inicio,
     end:   fim,
-    extendedProps: { id, nome, tipo, hunt, vocacao }
+    extendedProps: { id, nomeCliente, serviceiro, vocacao, tipo, hunt }
   });
 
-  // Salva no localStorage
-  const salvos = carregarEventos();
-  salvos.push({
-    id,
-    nome,
-    tipo,
-    hunt,
-    vocacao,
-    inicio: inicio.toISOString(),
-    fim:    fim.toISOString()
-  });
-  salvarEventos(salvos);
+  eventosSalvos.push({ id, nomeCliente, serviceiro, vocacao, tipo, hunt, inicio: inicio.toISOString(), fim: fim.toISOString() });
+  salvarEventos(eventosSalvos);
 
-  mostrarMensagem("✅ Agendamento realizado com sucesso!", "sucesso");
+  // Atualiza badges de disponibilidade
+  verificarDisponibilidade(dataFiltroEl.value);
 
-  // Limpa o formulário
+  mostrarMensagem("✅ Agendamento com " + serviceiro + " realizado!", "sucesso");
   e.target.reset();
+  servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
 });
