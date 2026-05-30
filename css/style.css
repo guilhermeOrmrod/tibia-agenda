@@ -1405,3 +1405,138 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   color: rgba(201,168,76,0.65);
   letter-spacing: 1px;
 }
+
+/* =========================================
+   PAINEL ADMIN
+   ========================================= */
+.nav-btn-admin {
+  border-color: rgba(224,90,58,0.5) !important;
+  color: #e05a3a !important;
+}
+.nav-btn-admin:hover, .nav-btn-admin.active {
+  background: rgba(224,90,58,0.15) !important;
+  border-color: #e05a3a !important;
+}
+
+#tab-admin {
+  max-width: 900px;
+  margin: 28px auto 40px;
+  padding: 0 24px;
+}
+
+.admin-titulo {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 20px;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.admin-painel { display: flex; flex-direction: column; gap: 20px; }
+
+.admin-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 24px;
+  backdrop-filter: blur(8px);
+}
+
+.admin-card h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 14px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-field label {
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  color: rgba(201,168,76,0.7);
+  letter-spacing: 0.5px;
+}
+
+.admin-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-input-row input { margin: 0; flex: 1; }
+
+.btn-admin-salvar {
+  background: var(--gold);
+  color: #0a0a0f;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  width: auto;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.btn-admin-salvar:hover { background: var(--gold-light); }
+
+.admin-obs {
+  font-size: 12px;
+  color: rgba(232,223,192,0.45);
+  margin-top: 12px;
+}
+
+/* Tags de hunts e serviceiros */
+.admin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.admin-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 13px;
+  color: #e8dfc0;
+}
+
+.admin-tag button {
+  background: none;
+  border: none;
+  color: rgba(224,90,58,0.8);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  width: auto;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.admin-tag button:hover { color: #e05a3a; }
+
+@media (max-width: 768px) {
+  #tab-admin { padding: 0 12px; margin: 16px auto 24px; }
+  .admin-grid { grid-template-columns: 1fr; }
+  .admin-input-row { flex-direction: column; }
+  .btn-admin-salvar { width: 100%; }
+}
