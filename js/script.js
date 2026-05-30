@@ -152,27 +152,16 @@ vocacaoEl.addEventListener("change", () => {
 
 // ── Hunt customizado ──────────────────────────
 document.getElementById("hunt").addEventListener("change", () => {
-  const huntCustom  = document.getElementById("huntCustom");
-  const huntValorSalvo = huntCustom.value; // salva o que foi digitado
+  const huntCustom = document.getElementById("huntCustom");
   if (document.getElementById("hunt").value === "custom") {
     huntCustom.style.display = "block";
     huntCustom.required = true;
-    huntCustom.value    = huntValorSalvo; // restaura o que foi digitado
     huntCustom.focus();
+    // Nunca limpa o valor ao mostrar — preserva o que foi digitado
   } else {
     huntCustom.style.display = "none";
     huntCustom.required = false;
-    // Não limpa o valor — só esconde, preserva para caso o user volte
-  }
-});
-
-// Garante que o campo customizado reaparece se hunt=custom ao trocar vocação
-document.getElementById("vocacao").addEventListener("change", () => {
-  const hunt = document.getElementById("hunt");
-  const huntCustom = document.getElementById("huntCustom");
-  if (hunt.value === "custom") {
-    huntCustom.style.display = "block";
-    huntCustom.required = true;
+    // Preserva o valor mesmo escondido — só limpa ao agendar com sucesso
   }
 });
 
