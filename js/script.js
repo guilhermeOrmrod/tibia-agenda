@@ -405,7 +405,8 @@ async function renderizarPagamentos() {
 
     function cardHTML(p) {
       const isAdmin = tipoUsuario === "admin";
-      const imgHTML = p.comprovante_url
+      // Somente admin pode ver o comprovante
+      const imgHTML = (isAdmin && p.comprovante_url)
         ? `<a href="${p.comprovante_url}" target="_blank" class="pg-comprovante">🖼️ Ver comprovante</a>`
         : "";
       const acoes = (isAdmin && p.status === "analise") ? `
