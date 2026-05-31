@@ -1586,3 +1586,286 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   color: #e8dfc0;
   flex: 1;
 }
+
+/* =========================================
+   BOTÃO FLUTUANTE FAQ
+   ========================================= */
+#btnFaq {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #0a0a0f;
+  font-size: 22px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(201,168,76,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+#btnFaq:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 28px rgba(201,168,76,0.6);
+}
+
+/* =========================================
+   MODAL FAQ
+   ========================================= */
+.faq-box {
+  width: 520px;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.faq-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.faq-header h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 16px;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.faq-fechar {
+  background: none;
+  border: none;
+  color: rgba(232,223,192,0.5);
+  font-size: 24px;
+  cursor: pointer;
+  width: auto;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.faq-fechar:hover { color: #e8dfc0; }
+
+/* Abas internas */
+.faq-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  gap: 4px;
+}
+
+.faq-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(232,223,192,0.5);
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  width: auto;
+  letter-spacing: 0.5px;
+  transition: color 0.2s, border-color 0.2s;
+  margin-bottom: -1px;
+}
+.faq-tab:hover { color: var(--gold); }
+.faq-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+/* Conteúdo */
+.faq-content {
+  display: none;
+  padding: 16px 24px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.faq-content.active { display: block; }
+
+/* Perguntas frequentes */
+.faq-item { border-bottom: 1px solid rgba(201,168,76,0.1); }
+.faq-item:last-child { border-bottom: none; }
+
+.faq-pergunta {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #e8dfc0;
+  font-size: 14px;
+  font-family: 'Crimson Text', serif;
+  text-align: left;
+  padding: 14px 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: color 0.2s;
+}
+.faq-pergunta:hover { color: var(--gold); }
+.faq-pergunta::after {
+  content: '+';
+  font-size: 20px;
+  color: var(--gold);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.faq-pergunta.aberta::after { transform: rotate(45deg); }
+
+.faq-resposta {
+  display: none;
+  font-size: 14px;
+  color: rgba(232,223,192,0.75);
+  line-height: 1.7;
+  padding-bottom: 14px;
+}
+.faq-resposta.aberta { display: block; }
+
+/* Formulário de sugestão */
+.faq-intro {
+  font-size: 14px;
+  color: rgba(232,223,192,0.65);
+  margin-bottom: 16px;
+}
+
+.faq-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faq-form textarea {
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: #e8dfc0;
+  font-family: 'Crimson Text', serif;
+  font-size: 15px;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.faq-form textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.faq-form button {
+  background: var(--gold);
+  color: #0a0a0f;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 11px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.faq-form button:hover { background: var(--gold-light); }
+
+/* Badge de sugestões não lidas */
+#badgeSugestoes {
+  background: #e05a3a;
+  color: #fff;
+  border-radius: 20px;
+  font-size: 11px;
+  padding: 2px 8px;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  margin-left: 8px;
+  display: none;
+}
+
+/* Cards de sugestões no admin */
+.sugestao-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(201,168,76,0.12);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.sugestao-card.nao-lida { border-left: 3px solid var(--gold); }
+.sugestao-card:last-child { margin-bottom: 0; }
+
+.sug-nome { font-weight: 600; color: #e8dfc0; font-size: 14px; }
+.sug-data { font-size: 11px; color: rgba(232,223,192,0.4); margin: 3px 0 8px; font-family: 'Cinzel', serif; }
+.sug-msg  { font-size: 14px; color: rgba(232,223,192,0.8); line-height: 1.6; }
+
+.sug-acoes { display: flex; gap: 8px; margin-top: 10px; }
+
+.btn-marcar-lida {
+  background: rgba(76,175,110,0.15);
+  border: 1px solid rgba(76,175,110,0.35);
+  color: #4caf6e;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.2s;
+}
+.btn-marcar-lida:hover { background: rgba(76,175,110,0.3); }
+
+@media (max-width: 768px) {
+  #btnFaq { bottom: 20px; right: 20px; width: 48px; height: 48px; font-size: 20px; }
+  .faq-box { max-height: 90vh; }
+}
+
+/* ── Banner da guild ── */
+#bannerGuild {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(90deg, rgba(201,168,76,0.15), rgba(201,168,76,0.08));
+  border-bottom: 1px solid rgba(201,168,76,0.3);
+  padding: 10px 24px;
+  font-size: 14px;
+  color: #e8dfc0;
+}
+
+.banner-icon { font-size: 18px; flex-shrink: 0; }
+
+.banner-texto { flex: 1; line-height: 1.5; }
+
+.banner-texto strong { color: var(--gold); font-family: 'Cinzel', serif; }
+
+.banner-texto a {
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+.banner-texto a:hover { color: var(--gold-light); }
+
+#btnFecharBanner {
+  background: none;
+  border: none;
+  color: rgba(232,223,192,0.4);
+  font-size: 20px;
+  cursor: pointer;
+  width: auto;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+#btnFecharBanner:hover { color: #e8dfc0; }
+
+@media (max-width: 768px) {
+  #bannerGuild { padding: 10px 12px; font-size: 13px; }
+}

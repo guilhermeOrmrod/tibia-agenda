@@ -52,6 +52,16 @@
 
   <div id="mensagem"></div>
 
+  <!-- Banner da guild -->
+  <div id="bannerGuild">
+    <span class="banner-icon">⚔️</span>
+    <span class="banner-texto">
+      Ainda não faz parte da guild <strong>Fatal</strong> no Lunarian?
+      <a href="https://fatal.team/" target="_blank" rel="noopener">Acesse fatal.team e dê seu apply!</a>
+    </span>
+    <button id="btnFecharBanner" title="Fechar">×</button>
+  </div>
+
   <!-- ABA: Serviceiros -->
   <section id="tab-serviceiros" class="tab-content active">
     <div class="section-header">
@@ -437,8 +447,73 @@
         <div id="listaHorariosAdmin"></div>
       </div>
 
+      <!-- Sugestões no painel admin -->
+      <div class="admin-card" id="cardSugestoes">
+        <h3>💬 Sugestões Recebidas <span id="badgeSugestoes"></span></h3>
+        <div id="listaSugestoesAdmin">
+          <p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>
+        </div>
+      </div>
+
     </div>
   </section>
+
+  <!-- Botão flutuante de FAQ/Sugestões -->
+  <button id="btnFaq" title="FAQ e Sugestões">💬</button>
+
+  <!-- Modal FAQ/Sugestões -->
+  <div id="modalFaq" class="modal" style="display:none">
+    <div class="modal-box faq-box">
+      <div class="faq-header">
+        <h3>💬 FAQ & Sugestões</h3>
+        <button id="btnFecharFaq" class="faq-fechar">×</button>
+      </div>
+
+      <!-- Abas internas -->
+      <div class="faq-tabs">
+        <button class="faq-tab active" data-faq="perguntas">❓ Perguntas Frequentes</button>
+        <button class="faq-tab" data-faq="sugestao">✉️ Enviar Sugestão</button>
+      </div>
+
+      <!-- FAQ -->
+      <div id="faq-perguntas" class="faq-content active">
+        <div class="faq-item">
+          <button class="faq-pergunta">Como faço para agendar um serviço?</button>
+          <div class="faq-resposta">Faça login com a senha de cliente, vá até a aba <strong>Agenda</strong>, preencha todos os campos e clique em Agendar. Certifique-se de escolher um horário dentro da disponibilidade do serviceiro.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Quanto custa o serviço?</button>
+          <div class="faq-resposta">O valor mínimo é <strong>R$20/hora</strong> em dias normais e <strong>R$25/hora</strong> em dias de evento. Os valores podem ser combinados diretamente com o serviceiro.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Como faço o pagamento?</button>
+          <div class="faq-resposta">O pagamento é feito via <strong>Pix</strong> diretamente para o serviceiro. Após pagar, vá até a aba <strong>Pagamentos</strong>, registre o comprovante e aguarde a aprovação do admin.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Como vejo o contato dos serviceiros?</button>
+          <div class="faq-resposta">Faça login com a senha de cliente e acesse a aba <strong>Contatos</strong>. Lá você encontra WhatsApp, Pix e Discord de cada serviceiro.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">O que acontece se o horário estiver ocupado?</button>
+          <div class="faq-resposta">O sistema bloqueia automaticamente horários já agendados. Você pode ver na aba <strong>Serviceiros</strong> os horários disponíveis de cada um e os agendamentos existentes no calendário.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Posso cancelar um agendamento?</button>
+          <div class="faq-resposta">Apenas o admin pode cancelar agendamentos. Entre em contato com um dos serviceiros via WhatsApp ou Discord para solicitar o cancelamento.</div>
+        </div>
+      </div>
+
+      <!-- Sugestão -->
+      <div id="faq-sugestao" class="faq-content">
+        <p class="faq-intro">Tem uma ideia para melhorar o site ou o serviço? Manda pra gente!</p>
+        <div class="faq-form">
+          <input type="text" id="sugNome" placeholder="Seu nick (ex: Fear Popstar)" autocomplete="off">
+          <textarea id="sugMensagem" placeholder="Descreva sua sugestão..." rows="4"></textarea>
+          <button id="btnEnviarSugestao">📤 Enviar sugestão</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="js/script.js"></script>
 </body>

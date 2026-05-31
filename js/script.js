@@ -81,7 +81,10 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     if (aba === "agenda")     setTimeout(() => calendar.updateSize(), 50);
     if (aba === "contatos")   renderizarContatos();
     if (aba === "pagamentos") renderizarPagamentos();
-    if (aba === "admin")      atualizarSelectHorariosAdmin();
+    if (aba === "admin") {
+      atualizarSelectHorariosAdmin();
+      carregarSugestoes();
+    }
   });
 });
 
@@ -642,6 +645,8 @@ async function carregarPainelAdmin() {
     atualizarSelectHorariosAdmin();
     // Carrega os horários já cadastrados
     await carregarHorariosCards();
+    // Carrega sugestões
+    carregarSugestoes();
   } catch(e) { console.error("Erro ao carregar config:", e); }
 }
 
@@ -978,6 +983,143 @@ document.getElementById("pgArquivo").addEventListener("change", (e) => {
   } else {
     preview.innerHTML = `<span style="font-size:13px;color:rgba(232,223,192,0.6)">📄 ${file.name}</span>`;
   }
+});
+
+// =========================================
+// FAQ & SUGESTÕES
+// =========================================
+
+// Abre/fecha modal
+document.getElementById("btnFaq").addEventListener("click", () => {
+  document.getElementById("modalFaq").style.display = "flex";
+});
+document.getElementById("btnFecharFaq").addEventListener("click", () => {
+  document.getElementById("modalFaq").style.display = "none";
+});
+document.getElementById("modalFaq").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("modalFaq"))
+    document.getElementById("modalFaq").style.display = "none";
+});
+
+// Abas internas do FAQ
+document.querySelectorAll(".faq-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".faq-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".faq-content").forEach(c => c.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("faq-" + tab.dataset.faq).classList.add("active");
+  });
+});
+
+// Acordeão das perguntas
+document.querySelectorAll(".faq-pergunta").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const resposta = btn.nextElementSibling;
+    const aberta   = btn.classList.contains("aberta");
+    // Fecha todas
+    document.querySelectorAll(".faq-pergunta").forEach(b => b.classList.remove("aberta"));
+    document.querySelectorAll(".faq-resposta").forEach(r => r.classList.remove("aberta"));
+    // Abre a clicada (se não estava aberta)
+    if (!aberta) {
+      btn.classList.add("aberta");
+      resposta.classList.add("aberta");
+    }
+  });
+});
+
+// Enviar sugestão
+document.getElementById("btnEnviarSugestao").addEventListener("click", async () => {
+  const nome     = document.getElementById("sugNome").value.trim();
+  const mensagem = document.getElementById("sugMensagem").value.trim();
+
+  if (!nome || !mensagem) {
+    mostrarMensagem("⚠️ Preencha seu nick e a sugestão.", "erro"); return;
+  }
+
+  const nomeRegexSug = /^[a-zA-ZÀ-ÿ ]+$/;
+  if (!nomeRegexSug.test(nome)) {
+    mostrarMensagem("⚠️ Nome inválido — use apenas letras e espaços.", "erro"); return;
+  }
+
+  if (mensagem.length < 10) {
+    mostrarMensagem("⚠️ Sugestão muito curta. Descreva melhor sua ideia!", "erro"); return;
+  }
+
+  try {
+    await supaPost("sugestoes", { nome, mensagem, lida: false });
+    document.getElementById("sugNome").value    = "";
+    document.getElementById("sugMensagem").value = "";
+    mostrarMensagem("✅ Sugestão enviada! Obrigado pelo feedback.", "sucesso");
+    document.getElementById("modalFaq").style.display = "none";
+  } catch(e) {
+    mostrarMensagem("⚠️ Erro ao enviar sugestão. Tente novamente.", "erro");
+  }
+});
+
+// Carrega sugestões no painel admin
+async function carregarSugestoes() {
+  if (tipoUsuario !== "admin") return;
+  try {
+    const sugestoes = await supaGet("sugestoes", "order=criado_em.desc");
+    const naoLidas  = sugestoes.filter(s => !s.lida).length;
+
+    // Badge no painel admin
+    const badge = document.getElementById("badgeSugestoes");
+    if (naoLidas > 0) {
+      badge.textContent = naoLidas + " nova" + (naoLidas > 1 ? "s" : "");
+      badge.style.display = "inline";
+    } else {
+      badge.style.display = "none";
+    }
+
+    const container = document.getElementById("listaSugestoesAdmin");
+    if (sugestoes.length === 0) {
+      container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhuma sugestão recebida ainda.</p>';
+      return;
+    }
+
+    container.innerHTML = sugestoes.map(s => `
+      <div class="sugestao-card ${s.lida ? '' : 'nao-lida'}">
+        <div class="sug-nome">${s.nome} ${!s.lida ? '<span style="color:var(--gold);font-size:11px;font-family:Cinzel,serif">● NOVA</span>' : ''}</div>
+        <div class="sug-data">${new Date(s.criado_em).toLocaleString("pt-BR")}</div>
+        <div class="sug-msg">${s.mensagem}</div>
+        <div class="sug-acoes">
+          ${!s.lida ? `<button class="btn-marcar-lida" data-sug-id="${s.id}">✅ Marcar como lida</button>` : '<span style="font-size:11px;color:rgba(232,223,192,0.3)">Lida</span>'}
+          <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-del-sug="${s.id}">🗑️</button>
+        </div>
+      </div>
+    `).join("");
+
+    // Marcar como lida
+    container.querySelectorAll(".btn-marcar-lida").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await supaPatch("sugestoes", btn.dataset.sugId, { lida: true });
+        carregarSugestoes();
+      });
+    });
+
+    // Excluir
+    container.querySelectorAll("[data-del-sug]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (confirm("Excluir esta sugestão?")) {
+          await supaDelete("sugestoes", btn.dataset.delSug);
+          carregarSugestoes();
+          mostrarMensagem("🗑️ Sugestão excluída.", "sucesso");
+        }
+      });
+    });
+
+  } catch(e) { console.error("Erro ao carregar sugestões:", e); }
+}
+
+// ── Banner da guild ──────────────────────────
+const bannerGuild = document.getElementById("bannerGuild");
+const bannerFechado = sessionStorage.getItem("banner_fechado");
+if (bannerFechado) bannerGuild.style.display = "none";
+
+document.getElementById("btnFecharBanner").addEventListener("click", () => {
+  bannerGuild.style.display = "none";
+  sessionStorage.setItem("banner_fechado", "1");
 });
 
 // ── Inicializa ────────────────────────────
