@@ -83,7 +83,10 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     document.getElementById("tab-" + aba).classList.add("active");
     if (aba === "agenda")     setTimeout(() => calendar.updateSize(), 50);
     if (aba === "contatos")   renderizarContatos();
-    if (aba === "pagamentos") renderizarPagamentos();
+    if (aba === "pagamentos") {
+      renderizarPagamentos();
+      popularSelectServiceiroPagamento();
+    }
     if (aba === "admin") {
       atualizarSelectHorariosAdmin();
       carregarSugestoes();
@@ -198,6 +201,23 @@ document.getElementById("hunt").addEventListener("change", () => {
   }
 });
 
+// ── Popula select de serviceiro na aba pagamentos ──
+function popularSelectServiceiroPagamento() {
+  const sel = document.getElementById("pgServiceiro");
+  if (!sel) return;
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione o serviceiro</option>';
+  const fonte = Object.keys(cfgAtual.serviceiros || {}).length > 0
+    ? cfgAtual.serviceiros : SERVICEIROS;
+  const todos = [...new Set(Object.values(fonte).flat())].sort();
+  todos.forEach(nome => {
+    const opt = document.createElement("option");
+    opt.value = opt.textContent = nome;
+    sel.appendChild(opt);
+  });
+  sel.value = atual;
+}
+
 // ── Limpa highlight de erro ────────────────
 ["nome","data","horaInicio","horaFim","tipo","hunt","huntCustom","vocacao","serviceiro"].forEach(id => {
   const el = document.getElementById(id);
@@ -285,6 +305,7 @@ function aplicarSessao(tipo) {
   document.getElementById("btnNavAdmin").style.display        = isAdmin ? "inline-block" : "none";
   renderizarContatos();
   renderizarPagamentos();
+  popularSelectServiceiroPagamento();
   if (isAdmin) carregarPainelAdmin();
 }
 
@@ -613,7 +634,7 @@ document.getElementById("btnNovoPagamento").addEventListener("click", () => {
 
 document.getElementById("btnEnviarPagamento").addEventListener("click", async () => {
   const nome       = document.getElementById("pgNome").value.trim();
-  const serviceiro = document.getElementById("pgServiceiro").value.trim();
+  const serviceiro = document.getElementById("pgServiceiro").value;
   const data       = document.getElementById("pgData").value;
   const valor      = document.getElementById("pgValor").value;
   const obs        = document.getElementById("pgObs").value.trim();
