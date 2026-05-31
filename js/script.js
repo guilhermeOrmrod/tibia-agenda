@@ -760,7 +760,8 @@ async function carregarAgendamentosPendentes(status = "pendente") {
       btn.addEventListener("click", () => atualizarStatusAg(btn.dataset.agAndamento, "em_andamento", "⚔️ Serviço iniciado!"));
     });
     container.querySelectorAll("[data-ag-concluir]").forEach(btn => {
-      btn.addEventListener("click", () => concluirAgendamento(btn.dataset.agConcluir));
+      const ag = ags.find(a => a.id === btn.dataset.agConcluir);
+      btn.addEventListener("click", () => concluirAgendamento(ag));
     });
 
   } catch(e) { console.error("Erro ao carregar agendamentos:", e); }
@@ -780,8 +781,14 @@ function gerarAcoesAdmin(ag) {
     </div>`;
   }
   if (ag.status === "em_andamento") {
+    const agora = new Date();
+    const fim   = new Date(ag.fim);
+    const podeConc = agora >= fim;
+    const btnTitle = podeConc ? "" : `title="Disponível após ${fim.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}"`;
     return `<div class="pg-acoes">
-      <button class="btn-concluir" data-ag-concluir="${ag.id}">🏆 Marcar concluído</button>
+      <button class="btn-concluir${podeConc ? "" : " btn-concluir-bloqueado"}" data-ag-concluir="${ag.id}" ${btnTitle}>
+        🏆 ${podeConc ? "Marcar concluído" : "Aguardando horário de fim"}
+      </button>
     </div>`;
   }
   return "";
@@ -823,13 +830,31 @@ async function atualizarStatusAg(id, novoStatus, msg) {
   carregarAgendamentosPendentes(abaAgAtual);
 }
 
-async function concluirAgendamento(id) {
+async function concluirAgendamento(ag) {
+  const agora = new Date();
+  const fim   = new Date(ag.fim);
+
+  // Só pode concluir depois do horário de fim do agendamento
+  if (agora < fim) {
+    const minutosRestantes = Math.ceil((fim - agora) / 60000);
+    const horasRestantes   = Math.floor(minutosRestantes / 60);
+    const minRest          = minutosRestantes % 60;
+    const tempoMsg = horasRestantes > 0
+      ? `${horasRestantes}h${minRest > 0 ? minRest + "min" : ""}`
+      : `${minutosRestantes}min`;
+    mostrarMensagem(
+      `⚠️ O serviço só pode ser concluído após o horário de fim. Faltam ${tempoMsg} (${fim.toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}).`,
+      "erro"
+    );
+    return;
+  }
+
   const obs = prompt("Observação da conclusão (opcional):");
-  await supaPatch("agendamentos", id, {
+  await supaPatch("agendamentos", ag.id, {
     status: "concluido",
     obs_conclusao: obs || ""
   });
-  const ev = calendar.getEventById(id);
+  const ev = calendar.getEventById(ag.id);
   if (ev) ev.setProp("color", "#4caf6e");
   mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
   carregarAgendamentosPendentes(abaAgAtual);

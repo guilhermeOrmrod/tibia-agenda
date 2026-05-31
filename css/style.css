@@ -2134,3 +2134,15 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   .historico-card .hc-badge { grid-column: 1/-1; }
   .historico-filtros select { width: 100%; }
 }
+
+/* ── Botão concluir bloqueado ── */
+.btn-concluir-bloqueado {
+  background: rgba(76,175,110,0.06) !important;
+  border-color: rgba(76,175,110,0.2) !important;
+  color: rgba(76,175,110,0.4) !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
+.btn-concluir-bloqueado:hover {
+  background: rgba(76,175,110,0.06) !important;
+}
