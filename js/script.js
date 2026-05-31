@@ -436,8 +436,9 @@ function atualizarUI() {
   document.getElementById("btnEditarContatos").style.display = isAdmin ? "inline-block" : "none";
 
   // Formulário de agendamento — clientes e admin podem agendar
-  document.getElementById("formAgendamento").style.display =
-    (logado && (tipoUsuario === "cliente" || isAdmin)) ? "block" : "none";
+  const podeAgendar = logado && (tipoUsuario === "cliente" || isAdmin);
+  document.getElementById("formAgendamento").style.display  = podeAgendar ? "block" : "none";
+  document.getElementById("agendaBloqueado").style.display  = !logado ? "flex" : "none";
 
   // Atualiza dados das abas
   renderizarContatos();
