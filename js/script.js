@@ -92,7 +92,8 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
       carregarSugestoes();
       carregarAgendamentosPendentes("pendente");
     }
-    if (aba === "historico") carregarHistorico();
+    if (aba === "historico")  carregarHistorico();
+    if (aba === "dashboard")  carregarDashboard();
   });
 });
 
@@ -308,7 +309,8 @@ async function carregarCalendario() {
 carregarCalendario();
 
 // ── Autenticação ──────────────────────────
-// Senhas carregadas do Supabase — não ficam hardcoded
+// Senhas carregadas EXCLUSIVAMENTE do Supabase
+// Não existe fallback hardcoded — sem senhas no código
 let SENHA_ADMIN_DIN   = null;
 let SENHA_CLIENTE_DIN = null;
 let senhasCarregadas  = false;
@@ -469,6 +471,14 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
     }
   }
 
+  // Risco 3: Limite de agendamentos pendentes por cliente (anti-abuso)
+  const pendentesCliente = await supaGet("agendamentos",
+    `nome_cliente=eq.${encodeURIComponent(nome_cliente)}&status=eq.pendente`
+  );
+  if (pendentesCliente.length >= 2) {
+    mostrarMensagem(`⚠️ Você já tem ${pendentesCliente.length} agendamento(s) aguardando aprovação. Aguarde a aprovação antes de criar novos.`, "erro"); return;
+  }
+
   // Verifica conflito — bloqueia se já tem pendente ou aprovado no horário
   const existentes = await supaGet("agendamentos",
     `serviceiro=eq.${encodeURIComponent(serviceiro)}&inicio=lte.${fim.toISOString()}&fim=gte.${inicio.toISOString()}&status=in.(pendente,aprovado)`
@@ -478,9 +488,20 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
     mostrarMensagem(`⚠️ ${serviceiro} já tem um serviço ${status} neste horário.`, "erro"); return;
   }
 
-  // Gera número de chamado sequencial
-  const ultimoChamado = await supaGet("agendamentos", "numero_chamado=not.is.null&order=numero_chamado.desc&limit=1");
-  const numeroChamado = ultimoChamado.length > 0 ? (ultimoChamado[0].numero_chamado + 1) : 1;
+  // Gera número de chamado atômico via função do Supabase (evita race condition)
+  let numeroChamado = 1;
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/rpc/gerar_numero_chamado`, {
+      method: "POST",
+      headers: { ...HEADERS, "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    numeroChamado = await res.json();
+  } catch(e) {
+    // Fallback: usa MAX + 1 se a função falhar
+    const ultimo = await supaGet("agendamentos", "numero_chamado=not.is.null&order=numero_chamado.desc&limit=1");
+    numeroChamado = ultimo.length > 0 ? (ultimo[0].numero_chamado + 1) : 1;
+  }
 
   // Salva no Supabase com status pendente e número de chamado
   await supaPost("agendamentos", {
@@ -660,18 +681,19 @@ document.getElementById("btnNovoPagamento").addEventListener("click", () => {
 });
 
 document.getElementById("btnEnviarPagamento").addEventListener("click", async () => {
-  const nome       = document.getElementById("pgNome").value.trim();
-  const serviceiro = document.getElementById("pgServiceiro").value;
-  const data       = document.getElementById("pgData").value;
-  const valor      = document.getElementById("pgValor").value;
-  const obs        = document.getElementById("pgObs").value.trim();
-  const arquivo    = document.getElementById("pgArquivo").files[0];
+  const nome        = document.getElementById("pgNome").value.trim();
+  const serviceiro  = document.getElementById("pgServiceiro").value;
+  const numChamado  = document.getElementById("pgNumeroChamado").value.trim();
+  const data        = document.getElementById("pgData").value;
+  const valor       = document.getElementById("pgValor").value;
+  const obs         = document.getElementById("pgObs").value.trim();
+  const arquivo     = document.getElementById("pgArquivo").files[0];
 
   if (!nome || !serviceiro || !data || !valor || !arquivo) {
-    mostrarMensagem("⚠️ Preencha todos os campos e anexe o comprovante.", "erro"); return;
+    mostrarMensagem("⚠️ Preencha todos os campos obrigatórios e anexe o comprovante.", "erro"); return;
   }
 
-  // Valida nome: só letras (incluindo acentos) e espaços
+  // Valida nome
   const nomeRegexPg = /^[a-zA-ZÀ-ÿ ]+$/;
   if (!nomeRegexPg.test(nome)) {
     document.getElementById("pgNome").classList.add("campo-invalido");
@@ -679,9 +701,23 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
     return;
   }
 
+  // Risco 4: valida número de chamado se informado
+  let agendamento_id = null;
+  if (numChamado) {
+    const chamados = await supaGet("agendamentos",
+      `numero_chamado=eq.${numChamado}&nome_cliente=ilike.${encodeURIComponent(nome)}`
+    );
+    if (chamados.length === 0) {
+      mostrarMensagem(`⚠️ Chamado #${numChamado} não encontrado para o nick "${nome}". Verifique os dados.`, "erro"); return;
+    }
+    if (chamados[0].serviceiro !== serviceiro) {
+      mostrarMensagem(`⚠️ O chamado #${numChamado} pertence ao serviceiro ${chamados[0].serviceiro}, não a ${serviceiro}.`, "erro"); return;
+    }
+    agendamento_id = chamados[0].id;
+  }
+
   mostrarMensagem("⏳ Enviando comprovante...", "sucesso");
 
-  // Upload do arquivo
   const ext  = arquivo.name.split(".").pop();
   const path = `${Date.now()}_${nome.replace(/[^a-zA-Z0-9]/g,"_")}.${ext}`;
   let comprovante_url = "";
@@ -692,11 +728,18 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
     mostrarMensagem("⚠️ Erro no upload do comprovante.", "erro"); return;
   }
 
-  await supaPost("pagamentos", { nome, serviceiro, data, valor: parseFloat(valor), obs, comprovante_url, status: "analise" });
+  await supaPost("pagamentos", {
+    nome, serviceiro, data, valor: parseFloat(valor), obs,
+    comprovante_url, status: "analise",
+    ...(agendamento_id ? { agendamento_id } : {})
+  });
   renderizarPagamentos();
   mostrarMensagem("📤 Pagamento enviado para análise!", "sucesso");
   document.getElementById("formPagamento").style.display = "none";
-  ["pgNome","pgServiceiro","pgData","pgValor","pgObs"].forEach(id => document.getElementById(id).value = "");
+  ["pgNome","pgServiceiro","pgNumeroChamado","pgData","pgValor","pgObs"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
   document.getElementById("pgArquivo").value = "";
 });
 
@@ -947,6 +990,77 @@ async function concluirAgendamento(ag) {
   if (ev) ev.setProp("color", "#4caf6e");
   mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
   carregarAgendamentosPendentes(abaAgAtual);
+  // Solicita avaliação ao cliente
+  mostrarModalAvaliacao(ag);
+}
+
+function mostrarModalAvaliacao(ag) {
+  const antigo = document.getElementById("modalAvaliacao");
+  if (antigo) antigo.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modalAvaliacao";
+  modal.innerHTML = `
+    <div class="chamado-box">
+      <div class="chamado-icon">⭐</div>
+      <h3>Serviço Concluído!</h3>
+      <p>Avalie o atendimento de <strong>${ag.serviceiro}</strong> no chamado <strong>#${ag.numero_chamado}</strong></p>
+      <div class="avaliacao-estrelas" id="estrelas">
+        ${[1,2,3,4,5].map(n => `<span class="estrela" data-val="${n}">★</span>`).join("")}
+      </div>
+      <div id="avaliacaoNota" style="font-family:'Cinzel',serif;color:var(--gold);font-size:13px;margin:8px 0;min-height:20px"></div>
+      <textarea id="avaliacaoComentario" placeholder="Comentário (opcional)" rows="3" style="width:100%;margin-top:8px;resize:vertical"></textarea>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button id="btnEnviarAvaliacao" style="flex:1">⭐ Enviar avaliação</button>
+        <button id="btnPularAvaliacao" style="flex:1;background:rgba(255,255,255,0.06);color:rgba(232,223,192,0.6);border:1px solid rgba(201,168,76,0.2)">Pular</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  let notaSelecionada = 0;
+  const LABELS = ["","Péssimo","Ruim","Regular","Bom","Excelente!"];
+
+  modal.querySelectorAll(".estrela").forEach(estrela => {
+    estrela.addEventListener("mouseenter", () => {
+      const val = parseInt(estrela.dataset.val);
+      modal.querySelectorAll(".estrela").forEach((e,i) => {
+        e.style.color = i < val ? "#f0c040" : "rgba(201,168,76,0.25)";
+      });
+      document.getElementById("avaliacaoNota").textContent = LABELS[val];
+    });
+    estrela.addEventListener("click", () => {
+      notaSelecionada = parseInt(estrela.dataset.val);
+    });
+    estrela.addEventListener("mouseleave", () => {
+      modal.querySelectorAll(".estrela").forEach((e,i) => {
+        e.style.color = i < notaSelecionada ? "#f0c040" : "rgba(201,168,76,0.25)";
+      });
+      document.getElementById("avaliacaoNota").textContent = notaSelecionada ? LABELS[notaSelecionada] : "";
+    });
+  });
+
+  document.getElementById("btnEnviarAvaliacao").addEventListener("click", async () => {
+    if (!notaSelecionada) {
+      document.getElementById("avaliacaoNota").textContent = "Selecione uma nota!";
+      document.getElementById("avaliacaoNota").style.color = "#e05a3a";
+      return;
+    }
+    const comentario = document.getElementById("avaliacaoComentario").value.trim();
+    try {
+      await supaPost("avaliacoes", {
+        agendamento_id: ag.id,
+        serviceiro: ag.serviceiro,
+        nome_cliente: ag.nome_cliente,
+        nota: notaSelecionada,
+        comentario
+      });
+      mostrarMensagem("⭐ Avaliação enviada! Obrigado pelo feedback.", "sucesso");
+    } catch(e) { console.warn("Erro ao salvar avaliação:", e); }
+    modal.remove();
+  });
+
+  document.getElementById("btnPularAvaliacao").addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
 }
 
 // =========================================
@@ -960,10 +1074,12 @@ async function carregarHistorico() {
 
   try {
     const chamadoFiltro = document.getElementById("filtroChamado")?.value.trim();
+    const nomeFiltro    = document.getElementById("filtroNomeHistorico")?.value.trim();
     let query = "order=inicio.desc";
     if (statusFiltro !== "todos")  query += `&status=eq.${statusFiltro}`;
     if (servicFiltro !== "todos")  query += `&serviceiro=eq.${encodeURIComponent(servicFiltro)}`;
     if (chamadoFiltro)             query += `&numero_chamado=eq.${chamadoFiltro}`;
+    if (nomeFiltro)                query += `&nome_cliente=ilike.*${encodeURIComponent(nomeFiltro)}*`;
 
     const ags = await supaGet("agendamentos", query);
 
@@ -1006,10 +1122,85 @@ async function carregarHistorico() {
   } catch(e) { container.innerHTML = '<p style="color:rgba(224,90,58,0.7);font-size:13px">Erro ao carregar histórico.</p>'; }
 }
 
+// =========================================
+// DASHBOARD DE MÉTRICAS
+// =========================================
+async function carregarDashboard() {
+  try {
+    const [todos, avaliacoes] = await Promise.all([
+      supaGet("agendamentos", "order=criado_em.desc"),
+      supaGet("avaliacoes", "order=criado_em.desc&limit=5").catch(() => [])
+    ]);
+
+    const total     = todos.length;
+    const concluidos = todos.filter(a => a.status === "concluido").length;
+    const pendentes  = todos.filter(a => a.status === "pendente").length;
+    const cancelados = todos.filter(a => ["cancelado","recusado","encerrado"].includes(a.status)).length;
+
+    // Métricas principais
+    document.getElementById("dashMetricas").innerHTML = `
+      <div class="dash-metrica">
+        <div class="dm-label">Total de chamados</div>
+        <div class="dm-valor">${total}</div>
+      </div>
+      <div class="dash-metrica">
+        <div class="dm-label">Concluídos</div>
+        <div class="dm-valor" style="color:#4caf6e">${concluidos}</div>
+      </div>
+      <div class="dash-metrica">
+        <div class="dm-label">Pendentes</div>
+        <div class="dm-valor" style="color:#f0c040">${pendentes}</div>
+      </div>
+      <div class="dash-metrica">
+        <div class="dm-label">Cancelados/Recusados</div>
+        <div class="dm-valor" style="color:#e05a3a">${cancelados}</div>
+      </div>
+      <div class="dash-metrica">
+        <div class="dm-label">Taxa de conclusão</div>
+        <div class="dm-valor">${total > 0 ? Math.round((concluidos/total)*100) : 0}%</div>
+      </div>`;
+
+    // Top serviceiros por serviços concluídos
+    const porServiceiro = {};
+    todos.filter(a => a.status === "concluido").forEach(a => {
+      porServiceiro[a.serviceiro] = (porServiceiro[a.serviceiro] || 0) + 1;
+    });
+    const ranking = Object.entries(porServiceiro).sort((a,b) => b[1]-a[1]).slice(0,5);
+    const maxVal  = ranking.length > 0 ? ranking[0][1] : 1;
+
+    document.getElementById("dashTopServiceiros").innerHTML = ranking.length === 0
+      ? '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhum serviço concluído ainda.</p>'
+      : ranking.map(([nome, qtd], i) => `
+          <div class="dash-rank-row">
+            <span class="dash-rank-pos">${i+1}</span>
+            <span class="dash-rank-nome">${nome}</span>
+            <div class="dash-rank-bar-wrap">
+              <div class="dash-rank-bar" style="width:${Math.round((qtd/maxVal)*100)}%"></div>
+            </div>
+            <span class="dash-rank-qtd">${qtd}</span>
+          </div>`).join("");
+
+    // Avaliações recentes
+    document.getElementById("dashAvaliacoes").innerHTML = avaliacoes.length === 0
+      ? '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhuma avaliação ainda.</p>'
+      : avaliacoes.map(av => `
+          <div class="dash-avaliacao">
+            <div class="da-header">
+              <span class="da-nome">${av.nome_cliente}</span>
+              <span class="da-estrelas">${"★".repeat(av.nota)}${"☆".repeat(5-av.nota)}</span>
+            </div>
+            <div class="da-serviceiro">→ ${av.serviceiro}</div>
+            ${av.comentario ? `<div class="da-comentario">"${av.comentario}"</div>` : ""}
+          </div>`).join("");
+
+  } catch(e) { console.error("Erro no dashboard:", e); }
+}
+
 // Filtros do histórico
 document.getElementById("filtroStatusHistorico")?.addEventListener("change", carregarHistorico);
 document.getElementById("filtroServiceiroHistorico")?.addEventListener("change", carregarHistorico);
 document.getElementById("filtroChamado")?.addEventListener("input", carregarHistorico);
+document.getElementById("filtroNomeHistorico")?.addEventListener("input", carregarHistorico);
 
 // =========================================
 // PAINEL ADMIN
@@ -1520,6 +1711,18 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
   loginBtn.textContent = "⏳";
   loginBtn.disabled    = true;
 
+  // Timeout de 8s para não travar se Supabase estiver lento
+  const timeoutId = setTimeout(() => {
+    if (!senhasCarregadas) {
+      loginBtn.textContent   = "Erro — recarregue";
+      loginBtn.disabled      = false;
+      loginBtn.style.background = "#e05a3a";
+      loginBtn.style.color      = "#fff";
+      loginBtn.title = "Supabase demorou demais. Clique para recarregar.";
+      loginBtn.onclick = () => location.reload();
+    }
+  }, 8000);
+
   try {
     const rows = await supaGet("configuracoes", "");
     rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
@@ -1540,19 +1743,29 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
         `R$ ${parseFloat(cfgAtual.precos.evento).toFixed(2).replace(".",",")} / hora em dias de evento`;
     }
 
+    clearTimeout(timeoutId);
     senhasCarregadas = true;
     // Restaura sessão DEPOIS das configs carregarem (painel admin terá os dados)
     if (sessaoSalva) aplicarSessao(sessaoSalva);
 
   } catch(e) {
     console.warn("Erro ao carregar configurações:", e);
-    SENHA_ADMIN_DIN   = "fatal-fallback-admin";
-    SENHA_CLIENTE_DIN = "fatal-fallback-cliente";
-    senhasCarregadas  = true;
-    if (sessaoSalva) aplicarSessao(sessaoSalva);
-  } finally {
-    loginBtn.textContent = "Entrar";
+    // Sem fallback hardcoded — mostra erro para o usuário
+    loginBtn.textContent = "Erro — recarregue";
     loginBtn.disabled    = false;
+    loginBtn.style.background = "#e05a3a";
+    loginBtn.style.color = "#fff";
+    loginBtn.title = "Erro ao carregar configurações. Recarregue a página.";
+    // Tenta novamente em 10s
+    setTimeout(() => location.reload(), 10000);
+    return;
+  } finally {
+    if (senhasCarregadas) {
+      loginBtn.textContent = "Entrar";
+      loginBtn.disabled    = false;
+      loginBtn.style.background = "";
+      loginBtn.style.color = "";
+    }
   }
 })();
 
