@@ -117,18 +117,42 @@ async function verificarDisponibilidade(dataSelecionada) {
       .filter(ev => ev.serviceiro === nome)
       .sort((a, b) => new Date(a.inicio) - new Date(b.inicio));
 
+    // Remove spans antigos
     const spanExistente = li.querySelector(".horarios-ocupados");
     if (spanExistente) spanExistente.remove();
+
+    // Garante que o nome tem wrapper com ícone
+    let nomeWrap = li.querySelector(".nome-wrap");
+    if (!nomeWrap) {
+      const nomeEl = li.querySelector(".nome");
+      nomeWrap = document.createElement("div");
+      nomeWrap.className = "nome-wrap";
+      const icon = document.createElement("span");
+      icon.className = "status-icon";
+      nomeWrap.appendChild(icon);
+      if (nomeEl) {
+        li.insertBefore(nomeWrap, nomeEl);
+        nomeWrap.appendChild(nomeEl);
+      }
+    }
+
+    const icon = nomeWrap.querySelector(".status-icon");
 
     if (agendamentosDia.length === 0) {
       badge.textContent = "Disponível";
       badge.className   = "badge disponivel";
+      li.classList.remove("status-ocupado");
+      li.classList.add("status-disponivel");
+      if (icon) icon.textContent = "🟢";
     } else {
       const horarios = agendamentosDia
         .map(ev => formatarHora(ev.inicio) + "–" + formatarHora(ev.fim))
         .join(", ");
       badge.textContent = "Ocupado";
       badge.className   = "badge ocupado";
+      li.classList.remove("status-disponivel");
+      li.classList.add("status-ocupado");
+      if (icon) icon.textContent = "🔴";
       const span = document.createElement("span");
       span.className   = "horarios-ocupados";
       span.textContent = horarios;
@@ -820,7 +844,10 @@ function atualizarServiceiros() {
       const li = document.createElement("li");
       li.dataset.nome = nome;
       li.innerHTML = `
-        <span class="nome">${nome}</span>
+        <div class="nome-wrap">
+          <span class="status-icon">⏳</span>
+          <span class="nome">${nome}</span>
+        </div>
         <span class="badge verificando">verificando...</span>
         <span class="horarios-semana" data-serviceiro="${nome}"></span>`;
       ul.appendChild(li);
