@@ -1820,27 +1820,7 @@ document.getElementById("btnSalvarPrecos").addEventListener("click", async () =>
   mostrarMensagem("✅ Preços atualizados!", "sucesso");
 });
 
-// Botão: salvar senha admin
-document.getElementById("btnSalvarSenhaAdmin").addEventListener("click", async () => {
-  const nova = document.getElementById("cfgSenhaAdmin").value.trim();
-  if (!nova || nova.length < 6) { mostrarMensagem("⚠️ Senha deve ter ao menos 6 caracteres.", "erro"); return; }
-  cfgAtual.senhas = { ...cfgAtual.senhas, admin: nova };
-  await salvarConfig("senhas", cfgAtual.senhas);
-  SENHA_ADMIN_DIN = nova;
-  document.getElementById("cfgSenhaAdmin").value = "";
-  mostrarMensagem("✅ Senha admin atualizada! Faça logout para confirmar.", "sucesso");
-});
 
-// Botão: salvar senha cliente
-document.getElementById("btnSalvarSenhaCliente").addEventListener("click", async () => {
-  const nova = document.getElementById("cfgSenhaCliente").value.trim();
-  if (!nova || nova.length < 6) { mostrarMensagem("⚠️ Senha deve ter ao menos 6 caracteres.", "erro"); return; }
-  cfgAtual.senhas = { ...cfgAtual.senhas, cliente: nova };
-  await salvarConfig("senhas", cfgAtual.senhas);
-  SENHA_CLIENTE_DIN = nova;
-  document.getElementById("cfgSenhaCliente").value = "";
-  mostrarMensagem("✅ Senha cliente atualizada!", "sucesso");
-});
 
 // Botão: adicionar hunt
 document.getElementById("btnAdicionarHunt").addEventListener("click", async () => {
