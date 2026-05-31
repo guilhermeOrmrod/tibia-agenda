@@ -9,6 +9,7 @@ const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 // Cliente Supabase Auth
 const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+if (!supabase) throw new Error('Supabase não carregou!');
 
 // Sessão atual
 let sessaoAuth = null;   // objeto session do Supabase
