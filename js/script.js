@@ -165,8 +165,9 @@ let agendamentosCache = [];
 
 async function verificarDisponibilidade(dataSelecionada) {
   try {
-    // Só conta como ocupado: pendente, aprovado e em_andamento
-    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00-03:00&inicio=lte.${dataSelecionada}T23:59:59-03:00&status=in.(pendente,aprovado,em_andamento)`);
+    // Só conta como ocupado: pendente/aprovado/em_andamento E que ainda não terminaram
+    const agora = new Date().toISOString();
+    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00-03:00&inicio=lte.${dataSelecionada}T23:59:59-03:00&status=in.(pendente,aprovado,em_andamento)&fim=gte.${agora}`);
   } catch(e) {
     agendamentosCache = [];
   }
@@ -446,7 +447,10 @@ function atualizarUI() {
   carregarHistorico();
   popularSelectServiceiroPagamento();
 
-  if (isAdmin) carregarPainelAdmin();
+  if (isAdmin) {
+    carregarPainelAdmin();
+    expirarPendentesVencidos();
+  }
   if (tipoUsuario === "serviceiro") carregarPainelServiceiro();
 }
 
@@ -1033,12 +1037,13 @@ async function carregarAgendamentosPendentes(status = "pendente") {
     }
 
     container.innerHTML = ags.map(ag => {
-      const acoes = gerarAcoesAdmin(ag);
+      const acoes    = gerarAcoesAdmin(ag);
       const numChamado = ag.numero_chamado ? `<span class="ag-chamado">#${ag.numero_chamado}</span>` : '';
+      const expirado = new Date(ag.fim) < new Date();
       return `
-        <div class="agendamento-card ${status}">
+        <div class="agendamento-card ${status}" style="${expirado ? 'border-left:3px solid #e05a3a;opacity:0.85' : ''}">
           <div class="ag-header">
-            <span class="ag-nome">${numChamado} ${ag.nome_cliente}</span>
+            <span class="ag-nome">${numChamado} ${ag.nome_cliente} ${expirado ? '<span style="font-size:10px;color:#e05a3a;font-family:Cinzel,serif">⏰ EXPIRADO</span>' : ''}</span>
             <span class="ag-status-badge">${STATUS_ICONS[status]} ${STATUS_LABELS[status]}</span>
           </div>
           <div class="ag-info">
@@ -2237,6 +2242,34 @@ function mostrarModalNovaSenha() {
       await _supa.auth.signOut();
     }
   });
+}
+
+// ── Expira agendamentos pendentes vencidos ──────────────
+async function expirarPendentesVencidos() {
+  try {
+    const agora = new Date().toISOString();
+    // Busca pendentes cujo horário de fim já passou
+    const vencidos = await supaGet("agendamentos",
+      `status=eq.pendente&fim=lt.${agora}`
+    );
+    if (vencidos.length === 0) return;
+
+    // Atualiza cada um para "expirado" via fetch direto (anon pode inserir, service_role atualiza)
+    // Usa adminAction se logado como admin, senão ignora (será feito ao logar)
+    if (tipoUsuario === "admin" && SENHA_ADMIN_DIN) {
+      for (const ag of vencidos) {
+        await adminAction("update", "agendamentos", ag.id, {
+          status: "recusado",
+          obs_conclusao: "⏰ Expirado automaticamente — não foi aceito dentro do prazo."
+        });
+      }
+      if (vencidos.length > 0) {
+        mostrarMensagem(`⚠️ ${vencidos.length} agendamento(s) pendente(s) expiraram e foram recusados automaticamente.`, "erro");
+        carregarAgendamentosPendentes(abaAgAtual);
+        verificarDisponibilidade(dataFiltroEl.value);
+      }
+    }
+  } catch(e) { console.warn("Erro ao expirar pendentes:", e); }
 }
 
 // ── Inicializa ────────────────────────────
