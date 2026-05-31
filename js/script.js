@@ -592,6 +592,10 @@ async function carregarPainelAdmin() {
     const rows = await supaGet("configuracoes", "");
     rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
     renderizarPainelAdmin();
+    // Popula o select de serviceiros do painel de horários
+    atualizarSelectHorariosAdmin();
+    // Carrega os horários já cadastrados
+    await carregarHorariosCards();
   } catch(e) { console.error("Erro ao carregar config:", e); }
 }
 
@@ -832,15 +836,19 @@ function atualizarSelectHorariosAdmin() {
   if (!sel) return;
   const atual = sel.value;
   sel.innerHTML = '<option value="">Selecione...</option>';
-  // Pega todos os serviceiros únicos de todas as vocações
-  const todos = [...new Set(Object.values(SERVICEIROS).flat())].sort();
+
+  // Pega serviceiros do SERVICEIROS (em memória) OU do cfgAtual.serviceiros (Supabase)
+  const fonte = Object.keys(cfgAtual.serviceiros || {}).length > 0
+    ? cfgAtual.serviceiros
+    : SERVICEIROS;
+  const todos = [...new Set(Object.values(fonte).flat())].sort();
+
   todos.forEach(nome => {
     const opt = document.createElement("option");
     opt.value = opt.textContent = nome;
     sel.appendChild(opt);
   });
   sel.value = atual;
-  // Atualiza a lista de horários do serviceiro selecionado
   if (sel.value) renderizarHorariosAdmin(sel.value);
 }
 
