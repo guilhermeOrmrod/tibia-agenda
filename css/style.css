@@ -1974,3 +1974,159 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   color: rgba(232,223,192,0.7);
   margin-bottom: 10px;
 }
+
+/* =========================================
+   HISTÓRICO
+   ========================================= */
+#tab-historico {
+  max-width: 1100px;
+  margin: 28px auto 40px;
+  padding: 0 24px;
+}
+
+.historico-filtros {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.historico-filtros select {
+  width: auto;
+  min-width: 160px;
+  margin: 0;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.historico-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.historico-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  backdrop-filter: blur(8px);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+  transition: border-color 0.2s;
+}
+
+.historico-card:hover { border-color: rgba(201,168,76,0.4); }
+
+.historico-card.status-pendente     { border-left: 3px solid #f0c040; }
+.historico-card.status-aprovado     { border-left: 3px solid #9333ea; }
+.historico-card.status-em_andamento { border-left: 3px solid #378add; }
+.historico-card.status-concluido    { border-left: 3px solid #4caf6e; }
+.historico-card.status-recusado     { border-left: 3px solid #e05a3a; opacity: 0.7; }
+
+.hc-status-icon { font-size: 24px; padding-top: 2px; }
+
+.hc-body { display: flex; flex-direction: column; gap: 4px; }
+
+.hc-titulo {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e8dfc0;
+}
+
+.hc-detalhe {
+  font-size: 13px;
+  color: rgba(232,223,192,0.65);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hc-obs {
+  font-size: 13px;
+  color: rgba(232,223,192,0.5);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.hc-badge {
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.hc-badge.pendente     { background: rgba(240,192,64,0.15);  color: #f0c040;  border: 1px solid rgba(240,192,64,0.35); }
+.hc-badge.aprovado     { background: rgba(147,51,234,0.15);  color: #a855f7;  border: 1px solid rgba(147,51,234,0.35); }
+.hc-badge.em_andamento { background: rgba(55,138,221,0.15);  color: #60a5fa;  border: 1px solid rgba(55,138,221,0.35); }
+.hc-badge.concluido    { background: rgba(76,175,110,0.15);  color: #4caf6e;  border: 1px solid rgba(76,175,110,0.35); }
+.hc-badge.recusado     { background: rgba(224,90,58,0.15);   color: #e05a3a;  border: 1px solid rgba(224,90,58,0.35); }
+
+.hc-acoes { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+
+.btn-andamento {
+  background: rgba(55,138,221,0.15);
+  border: 1px solid rgba(55,138,221,0.35);
+  color: #60a5fa;
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.2s;
+}
+.btn-andamento:hover { background: rgba(55,138,221,0.3); }
+
+.btn-concluir {
+  background: rgba(76,175,110,0.15);
+  border: 1px solid rgba(76,175,110,0.35);
+  color: #4caf6e;
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.2s;
+}
+.btn-concluir:hover { background: rgba(76,175,110,0.3); }
+
+/* Abas internas do admin de agendamentos */
+.admin-ag-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-ag-tab {
+  background: rgba(201,168,76,0.06);
+  border: 1px solid rgba(201,168,76,0.2);
+  color: rgba(232,223,192,0.55);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  width: auto;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.admin-ag-tab:hover { color: var(--gold); border-color: rgba(201,168,76,0.4); }
+.admin-ag-tab.active { color: var(--gold); border-color: var(--gold); background: rgba(201,168,76,0.12); }
+
+@media (max-width: 768px) {
+  #tab-historico { padding: 0 12px; margin: 16px auto 24px; }
+  .historico-card { grid-template-columns: auto 1fr; }
+  .historico-card .hc-badge { grid-column: 1/-1; }
+  .historico-filtros select { width: 100%; }
+}

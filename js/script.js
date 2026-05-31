@@ -87,8 +87,9 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     if (aba === "admin") {
       atualizarSelectHorariosAdmin();
       carregarSugestoes();
-      carregarAgendamentosPendentes();
+      carregarAgendamentosPendentes("pendente");
     }
+    if (aba === "historico") carregarHistorico();
   });
 });
 
@@ -245,15 +246,16 @@ window.addEventListener("resize", () => calendar.updateSize());
 // Carrega agendamentos do Supabase no calendário
 async function carregarCalendario() {
   try {
-    // Carrega apenas agendamentos aprovados no calendário
-    const eventos = await supaGet("agendamentos", "status=eq.aprovado&order=inicio.asc");
+    // Carrega agendamentos aprovados e em andamento no calendário
+    const STATUS_CORES = { aprovado: "#9333ea", em_andamento: "#378add", concluido: "#4caf6e" };
+    const eventos = await supaGet("agendamentos", "status=in.(aprovado,em_andamento,concluido)&order=inicio.asc");
     eventos.forEach(ev => {
       calendar.addEvent({
         id:         ev.id,
         title:      ev.serviceiro + " → " + ev.nome_cliente + " (" + ev.hunt + ")",
         start:      ev.inicio,
         end:        ev.fim,
-        color:      "#9333ea",
+        color:      STATUS_CORES[ev.status] || "#9333ea",
         extendedProps: { id: ev.id, nome_cliente: ev.nome_cliente, serviceiro: ev.serviceiro, vocacao: ev.vocacao, tipo: ev.tipo, hunt: ev.hunt, status: ev.status }
       });
     });
@@ -657,83 +659,216 @@ if (pgNomeEl) {
 }
 
 // =========================================
-// APROVAÇÃO DE AGENDAMENTOS
+// GESTÃO DE AGENDAMENTOS (Admin)
 // =========================================
 
-async function carregarAgendamentosPendentes() {
+const STATUS_ICONS = {
+  pendente:     "⏳",
+  aprovado:     "✅",
+  em_andamento: "⚔️",
+  concluido:    "🏆",
+  recusado:     "❌"
+};
+
+const STATUS_LABELS = {
+  pendente:     "Pendente",
+  aprovado:     "Aprovado",
+  em_andamento: "Em andamento",
+  concluido:    "Concluído",
+  recusado:     "Recusado"
+};
+
+let abaAgAtual = "pendente";
+
+// Listeners das abas internas de agendamentos
+document.querySelectorAll(".admin-ag-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".admin-ag-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    abaAgAtual = tab.dataset.agTab;
+    carregarAgendamentosPendentes(abaAgAtual);
+  });
+});
+
+async function carregarAgendamentosPendentes(status = "pendente") {
   if (tipoUsuario !== "admin") return;
   try {
-    const pendentes = await supaGet("agendamentos", "status=eq.pendente&order=inicio.asc");
+    const ags = await supaGet("agendamentos", `status=eq.${status}&order=inicio.asc`);
     const badge = document.getElementById("badgeAgendamentos");
 
-    if (pendentes.length > 0) {
-      badge.textContent = pendentes.length + " pendente" + (pendentes.length > 1 ? "s" : "");
+    // Badge só para pendentes
+    if (status === "pendente" && ags.length > 0) {
+      badge.textContent = ags.length;
       badge.style.display = "inline";
-    } else {
+    } else if (status === "pendente") {
       badge.style.display = "none";
     }
 
     const container = document.getElementById("listaAgendamentosPendentes");
-
-    if (pendentes.length === 0) {
-      container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhum agendamento pendente.</p>';
+    if (ags.length === 0) {
+      container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">Nenhum agendamento com status "${STATUS_LABELS[status]}".</p>`;
       return;
     }
 
-    container.innerHTML = pendentes.map(ag => `
-      <div class="agendamento-card pendente">
-        <div class="ag-header">
-          <span class="ag-nome">${ag.nome_cliente}</span>
-          <span class="ag-status-badge">⏳ Pendente</span>
+    container.innerHTML = ags.map(ag => {
+      const acoes = gerarAcoesAdmin(ag);
+      return `
+        <div class="agendamento-card ${status}">
+          <div class="ag-header">
+            <span class="ag-nome">${ag.nome_cliente}</span>
+            <span class="ag-status-badge">${STATUS_ICONS[status]} ${STATUS_LABELS[status]}</span>
+          </div>
+          <div class="ag-info">
+            <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
+            <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
+            <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}</span>
+            ${ag.obs_conclusao ? `<span style="color:rgba(76,175,110,0.8);font-style:italic">📝 ${ag.obs_conclusao}</span>` : ""}
+          </div>
+          ${acoes}
+        </div>`;
+    }).join("");
+
+    // Botões
+    container.querySelectorAll(".btn-aprovar[data-ag-id]").forEach(btn => {
+      btn.addEventListener("click", () => aprovarAgendamento(btn.dataset.agId, ags));
+    });
+    container.querySelectorAll("[data-ag-recusar]").forEach(btn => {
+      btn.addEventListener("click", () => recusarAgendamento(btn.dataset.agRecusar));
+    });
+    container.querySelectorAll("[data-ag-andamento]").forEach(btn => {
+      btn.addEventListener("click", () => atualizarStatusAg(btn.dataset.agAndamento, "em_andamento", "⚔️ Serviço iniciado!"));
+    });
+    container.querySelectorAll("[data-ag-concluir]").forEach(btn => {
+      btn.addEventListener("click", () => concluirAgendamento(btn.dataset.agConcluir));
+    });
+
+  } catch(e) { console.error("Erro ao carregar agendamentos:", e); }
+}
+
+function gerarAcoesAdmin(ag) {
+  if (ag.status === "pendente") {
+    return `<div class="pg-acoes">
+      <button class="btn-aprovar" data-ag-id="${ag.id}">✅ Aprovar</button>
+      <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Recusar</button>
+    </div>`;
+  }
+  if (ag.status === "aprovado") {
+    return `<div class="pg-acoes">
+      <button class="btn-andamento" data-ag-andamento="${ag.id}">⚔️ Iniciar serviço</button>
+      <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Cancelar</button>
+    </div>`;
+  }
+  if (ag.status === "em_andamento") {
+    return `<div class="pg-acoes">
+      <button class="btn-concluir" data-ag-concluir="${ag.id}">🏆 Marcar concluído</button>
+    </div>`;
+  }
+  return "";
+}
+
+async function aprovarAgendamento(id, lista) {
+  await supaPatch("agendamentos", id, { status: "aprovado" });
+  const ag = lista.find(a => a.id === id);
+  if (ag) {
+    calendar.addEvent({
+      id, title: ag.serviceiro + " → " + ag.nome_cliente + " (" + ag.hunt + ")",
+      start: ag.inicio, end: ag.fim, color: "#9333ea",
+      extendedProps: { id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado" }
+    });
+  }
+  mostrarMensagem("✅ Agendamento aprovado!", "sucesso");
+  carregarAgendamentosPendentes(abaAgAtual);
+  verificarDisponibilidade(dataFiltroEl.value);
+}
+
+async function recusarAgendamento(id) {
+  if (confirm("Cancelar/recusar este agendamento?")) {
+    await supaPatch("agendamentos", id, { status: "recusado" });
+    // Remove do calendário se estiver lá
+    const evCalendario = calendar.getEventById(id);
+    if (evCalendario) evCalendario.remove();
+    mostrarMensagem("❌ Agendamento recusado.", "erro");
+    carregarAgendamentosPendentes(abaAgAtual);
+    verificarDisponibilidade(dataFiltroEl.value);
+  }
+}
+
+async function atualizarStatusAg(id, novoStatus, msg) {
+  await supaPatch("agendamentos", id, { status: novoStatus });
+  // Atualiza cor no calendário
+  const ev = calendar.getEventById(id);
+  if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
+  mostrarMensagem(msg, "sucesso");
+  carregarAgendamentosPendentes(abaAgAtual);
+}
+
+async function concluirAgendamento(id) {
+  const obs = prompt("Observação da conclusão (opcional):");
+  await supaPatch("agendamentos", id, {
+    status: "concluido",
+    obs_conclusao: obs || ""
+  });
+  const ev = calendar.getEventById(id);
+  if (ev) ev.setProp("color", "#4caf6e");
+  mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
+  carregarAgendamentosPendentes(abaAgAtual);
+}
+
+// =========================================
+// HISTÓRICO DE SERVIÇOS
+// =========================================
+async function carregarHistorico() {
+  const statusFiltro     = document.getElementById("filtroStatusHistorico").value;
+  const servicFiltro     = document.getElementById("filtroServiceiroHistorico").value;
+  const container        = document.getElementById("listaHistorico");
+  container.innerHTML    = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
+
+  try {
+    let query = "order=inicio.desc";
+    if (statusFiltro !== "todos")    query += `&status=eq.${statusFiltro}`;
+    if (servicFiltro !== "todos")    query += `&serviceiro=eq.${encodeURIComponent(servicFiltro)}`;
+
+    const ags = await supaGet("agendamentos", query);
+
+    // Popula filtro de serviceiros
+    const selServ = document.getElementById("filtroServiceiroHistorico");
+    const atual   = selServ.value;
+    const todos   = [...new Set(Object.values(SERVICEIROS).flat())].sort();
+    selServ.innerHTML = '<option value="todos">Todos os serviceiros</option>';
+    todos.forEach(n => {
+      const opt = document.createElement("option");
+      opt.value = opt.textContent = n;
+      selServ.appendChild(opt);
+    });
+    selServ.value = atual;
+
+    if (ags.length === 0) {
+      container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:20px 0;text-align:center">Nenhum serviço encontrado.</p>';
+      return;
+    }
+
+    container.innerHTML = ags.map(ag => `
+      <div class="historico-card status-${ag.status}">
+        <div class="hc-status-icon">${STATUS_ICONS[ag.status] || "❓"}</div>
+        <div class="hc-body">
+          <div class="hc-titulo">${ag.nome_cliente} → ${ag.serviceiro}</div>
+          <div class="hc-detalhe">
+            <span>⚔️ ${ag.vocacao}</span>
+            <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
+            <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} – ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
+          </div>
+          ${ag.obs_conclusao ? `<div class="hc-obs">📝 ${ag.obs_conclusao}</div>` : ""}
         </div>
-        <div class="ag-info">
-          <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
-          <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
-          <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}</span>
-        </div>
-        <div class="pg-acoes">
-          <button class="btn-aprovar" data-ag-id="${ag.id}">✅ Aprovar</button>
-          <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Recusar</button>
-        </div>
+        <span class="hc-badge ${ag.status}">${STATUS_LABELS[ag.status] || ag.status}</span>
       </div>
     `).join("");
 
-    // Aprovar
-    container.querySelectorAll(".btn-aprovar[data-ag-id]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        await supaPatch("agendamentos", btn.dataset.agId, { status: "aprovado" });
-        // Adiciona ao calendário após aprovar
-        const ag = pendentes.find(a => a.id === btn.dataset.agId);
-        if (ag) {
-          calendar.addEvent({
-            id:    ag.id,
-            title: ag.serviceiro + " → " + ag.nome_cliente + " (" + ag.hunt + ")",
-            start: ag.inicio,
-            end:   ag.fim,
-            color: "#9333ea",
-            extendedProps: { id: ag.id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado" }
-          });
-        }
-        mostrarMensagem("✅ Agendamento aprovado!", "sucesso");
-        carregarAgendamentosPendentes();
-        verificarDisponibilidade(dataFiltroEl.value);
-      });
-    });
-
-    // Recusar
-    container.querySelectorAll("[data-ag-recusar]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        if (confirm("Recusar este agendamento?")) {
-          await supaPatch("agendamentos", btn.dataset.agRecusar, { status: "recusado" });
-          mostrarMensagem("❌ Agendamento recusado.", "erro");
-          carregarAgendamentosPendentes();
-          verificarDisponibilidade(dataFiltroEl.value);
-        }
-      });
-    });
-
-  } catch(e) { console.error("Erro ao carregar pendentes:", e); }
+  } catch(e) { container.innerHTML = '<p style="color:rgba(224,90,58,0.7);font-size:13px">Erro ao carregar histórico.</p>'; }
 }
+
+// Filtros do histórico
+document.getElementById("filtroStatusHistorico")?.addEventListener("change", carregarHistorico);
+document.getElementById("filtroServiceiroHistorico")?.addEventListener("change", carregarHistorico);
 
 // =========================================
 // PAINEL ADMIN
@@ -752,7 +887,7 @@ async function carregarPainelAdmin() {
     // Carrega sugestões
     carregarSugestoes();
     // Carrega agendamentos pendentes
-    carregarAgendamentosPendentes();
+    carregarAgendamentosPendentes('pendente');
   } catch(e) { console.error("Erro ao carregar config:", e); }
 }
 

@@ -35,6 +35,7 @@
         <button class="nav-btn" data-tab="precos">Preços</button>
         <button class="nav-btn" data-tab="contatos">Contatos</button>
         <button class="nav-btn" data-tab="pagamentos">Pagamentos</button>
+        <button class="nav-btn" data-tab="historico">Histórico</button>
         <button class="nav-btn nav-btn-admin" data-tab="admin" id="btnNavAdmin" style="display:none">⚙️ Admin</button>
       </nav>
       <div id="loginBox">
@@ -447,12 +448,16 @@
         <div id="listaHorariosAdmin"></div>
       </div>
 
-      <!-- Aprovação de Agendamentos -->
+      <!-- Gestão de Agendamentos -->
       <div class="admin-card">
-        <h3>📋 Agendamentos Pendentes <span id="badgeAgendamentos"></span></h3>
-        <div id="listaAgendamentosPendentes">
-          <p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>
+        <h3>📋 Gestão de Agendamentos</h3>
+        <div class="admin-ag-tabs">
+          <button class="admin-ag-tab active" data-ag-tab="pendente">⏳ Pendentes <span id="badgeAgendamentos"></span></button>
+          <button class="admin-ag-tab" data-ag-tab="aprovado">✅ Aprovados</button>
+          <button class="admin-ag-tab" data-ag-tab="em_andamento">⚔️ Em andamento</button>
+          <button class="admin-ag-tab" data-ag-tab="concluido">🏆 Concluídos</button>
         </div>
+        <div id="listaAgendamentosPendentes"></div>
       </div>
 
       <!-- Sugestões no painel admin -->
@@ -464,6 +469,27 @@
       </div>
 
     </div>
+  </section>
+
+  <!-- ABA: Histórico -->
+  <section id="tab-historico" class="tab-content">
+    <div class="section-header">
+      <h2>Histórico de Serviços</h2>
+      <div class="historico-filtros">
+        <select id="filtroStatusHistorico">
+          <option value="todos">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="recusado">Recusado</option>
+        </select>
+        <select id="filtroServiceiroHistorico">
+          <option value="todos">Todos os serviceiros</option>
+        </select>
+      </div>
+    </div>
+    <div id="listaHistorico" class="historico-lista"></div>
   </section>
 
   <!-- Botão flutuante de FAQ/Sugestões -->
