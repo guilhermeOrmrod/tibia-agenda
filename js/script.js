@@ -45,7 +45,10 @@ async function supaUpload(bucket, path, file) {
     headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY },
     body: file
   });
-  const data = await res.json();
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error("Upload falhou: " + (err.message || res.status));
+  }
   return `${SUPA_URL}/storage/v1/object/public/${bucket}/${path}`;
 }
 
@@ -84,6 +87,7 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     if (aba === "admin") {
       atualizarSelectHorariosAdmin();
       carregarSugestoes();
+      carregarAgendamentosPendentes();
     }
   });
 });
@@ -100,7 +104,7 @@ let agendamentosCache = [];
 
 async function verificarDisponibilidade(dataSelecionada) {
   try {
-    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00&inicio=lte.${dataSelecionada}T23:59:59`);
+    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00-03:00&inicio=lte.${dataSelecionada}T23:59:59-03:00`);
   } catch(e) {
     agendamentosCache = [];
   }
@@ -150,6 +154,8 @@ vocacaoEl.addEventListener("change", () => {
       servicEireEl.appendChild(opt);
     });
   }
+  // Garante que campo de hunt customizado se mantém visível
+  atualizarHuntCustom();
 });
 
 // ── Hunt customizado ──────────────────────────
@@ -215,14 +221,16 @@ window.addEventListener("resize", () => calendar.updateSize());
 // Carrega agendamentos do Supabase no calendário
 async function carregarCalendario() {
   try {
-    const eventos = await supaGet("agendamentos", "order=inicio.asc");
+    // Carrega apenas agendamentos aprovados no calendário
+    const eventos = await supaGet("agendamentos", "status=eq.aprovado&order=inicio.asc");
     eventos.forEach(ev => {
       calendar.addEvent({
-        id:    ev.id,
-        title: ev.serviceiro + " → " + ev.nome_cliente + " (" + ev.hunt + ")",
-        start: ev.inicio,
-        end:   ev.fim,
-        extendedProps: { id: ev.id, nome_cliente: ev.nome_cliente, serviceiro: ev.serviceiro, vocacao: ev.vocacao, tipo: ev.tipo, hunt: ev.hunt }
+        id:         ev.id,
+        title:      ev.serviceiro + " → " + ev.nome_cliente + " (" + ev.hunt + ")",
+        start:      ev.inicio,
+        end:        ev.fim,
+        color:      "#9333ea",
+        extendedProps: { id: ev.id, nome_cliente: ev.nome_cliente, serviceiro: ev.serviceiro, vocacao: ev.vocacao, tipo: ev.tipo, hunt: ev.hunt, status: ev.status }
       });
     });
   } catch(e) {
@@ -254,11 +262,8 @@ function aplicarSessao(tipo) {
   if (isAdmin) carregarPainelAdmin();
 }
 
-// Restaura sessão ao recarregar a página
+// Restaura sessão — guardada para depois do Supabase carregar
 const sessaoSalva = sessionStorage.getItem("fatal_session");
-if (sessaoSalva) {
-  aplicarSessao(sessaoSalva);
-}
 
 document.getElementById("loginBtn").addEventListener("click", () => {
   const senha = document.getElementById("senha").value;
@@ -396,29 +401,25 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
     }
   }
 
-  // Verifica conflito no Supabase
+  // Verifica conflito — bloqueia se já tem pendente ou aprovado no horário
   const existentes = await supaGet("agendamentos",
-    `serviceiro=eq.${encodeURIComponent(serviceiro)}&inicio=lte.${fim.toISOString()}&fim=gte.${inicio.toISOString()}`
+    `serviceiro=eq.${encodeURIComponent(serviceiro)}&inicio=lte.${fim.toISOString()}&fim=gte.${inicio.toISOString()}&status=in.(pendente,aprovado)`
   );
   if (existentes.length > 0) {
-    mostrarMensagem("⚠️ " + serviceiro + " já tem agendamento neste horário.", "erro"); return;
+    const status = existentes[0].status === "pendente" ? "aguardando aprovação" : "já agendado";
+    mostrarMensagem(`⚠️ ${serviceiro} já tem um serviço ${status} neste horário.`, "erro"); return;
   }
 
-  // Salva no Supabase
-  const [novo] = await supaPost("agendamentos", {
+  // Salva no Supabase com status pendente
+  await supaPost("agendamentos", {
     nome_cliente, serviceiro, vocacao, tipo, hunt,
-    inicio: inicio.toISOString(), fim: fim.toISOString()
+    inicio: inicio.toISOString(), fim: fim.toISOString(),
+    status: "pendente"
   });
 
-  calendar.addEvent({
-    id:    novo.id,
-    title: serviceiro + " → " + nome_cliente + " (" + hunt + ")",
-    start: inicio, end: fim,
-    extendedProps: { id: novo.id, nome_cliente, serviceiro, vocacao, tipo, hunt }
-  });
-
+  // Não adiciona ao calendário — só aparece após aprovação
   verificarDisponibilidade(dataFiltroEl.value);
-  mostrarMensagem("✅ Agendamento com " + serviceiro + " realizado!", "sucesso");
+  mostrarMensagem("📋 Agendamento enviado! Aguarde a aprovação do admin.", "sucesso");
   e.target.reset();
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   document.getElementById("huntCustom").style.display = "none";
@@ -608,7 +609,7 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
 
   // Upload do arquivo
   const ext  = arquivo.name.split(".").pop();
-  const path = `${Date.now()}_${nome.replace(/\s/g,"_")}.${ext}`;
+  const path = `${Date.now()}_${nome.replace(/[^a-zA-Z0-9]/g,"_")}.${ext}`;
   let comprovante_url = "";
 
   try {
@@ -632,6 +633,85 @@ if (pgNomeEl) {
 }
 
 // =========================================
+// APROVAÇÃO DE AGENDAMENTOS
+// =========================================
+
+async function carregarAgendamentosPendentes() {
+  if (tipoUsuario !== "admin") return;
+  try {
+    const pendentes = await supaGet("agendamentos", "status=eq.pendente&order=inicio.asc");
+    const badge = document.getElementById("badgeAgendamentos");
+
+    if (pendentes.length > 0) {
+      badge.textContent = pendentes.length + " pendente" + (pendentes.length > 1 ? "s" : "");
+      badge.style.display = "inline";
+    } else {
+      badge.style.display = "none";
+    }
+
+    const container = document.getElementById("listaAgendamentosPendentes");
+
+    if (pendentes.length === 0) {
+      container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhum agendamento pendente.</p>';
+      return;
+    }
+
+    container.innerHTML = pendentes.map(ag => `
+      <div class="agendamento-card pendente">
+        <div class="ag-header">
+          <span class="ag-nome">${ag.nome_cliente}</span>
+          <span class="ag-status-badge">⏳ Pendente</span>
+        </div>
+        <div class="ag-info">
+          <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
+          <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
+          <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}</span>
+        </div>
+        <div class="pg-acoes">
+          <button class="btn-aprovar" data-ag-id="${ag.id}">✅ Aprovar</button>
+          <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Recusar</button>
+        </div>
+      </div>
+    `).join("");
+
+    // Aprovar
+    container.querySelectorAll(".btn-aprovar[data-ag-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await supaPatch("agendamentos", btn.dataset.agId, { status: "aprovado" });
+        // Adiciona ao calendário após aprovar
+        const ag = pendentes.find(a => a.id === btn.dataset.agId);
+        if (ag) {
+          calendar.addEvent({
+            id:    ag.id,
+            title: ag.serviceiro + " → " + ag.nome_cliente + " (" + ag.hunt + ")",
+            start: ag.inicio,
+            end:   ag.fim,
+            color: "#9333ea",
+            extendedProps: { id: ag.id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado" }
+          });
+        }
+        mostrarMensagem("✅ Agendamento aprovado!", "sucesso");
+        carregarAgendamentosPendentes();
+        verificarDisponibilidade(dataFiltroEl.value);
+      });
+    });
+
+    // Recusar
+    container.querySelectorAll("[data-ag-recusar]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (confirm("Recusar este agendamento?")) {
+          await supaPatch("agendamentos", btn.dataset.agRecusar, { status: "recusado" });
+          mostrarMensagem("❌ Agendamento recusado.", "erro");
+          carregarAgendamentosPendentes();
+          verificarDisponibilidade(dataFiltroEl.value);
+        }
+      });
+    });
+
+  } catch(e) { console.error("Erro ao carregar pendentes:", e); }
+}
+
+// =========================================
 // PAINEL ADMIN
 // =========================================
 let cfgAtual = { hunts: [], serviceiros: {}, precos: {}, senhas: {} };
@@ -647,6 +727,8 @@ async function carregarPainelAdmin() {
     await carregarHorariosCards();
     // Carrega sugestões
     carregarSugestoes();
+    // Carrega agendamentos pendentes
+    carregarAgendamentosPendentes();
   } catch(e) { console.error("Erro ao carregar config:", e); }
 }
 
@@ -1151,15 +1233,16 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
     }
 
     senhasCarregadas = true;
+    // Restaura sessão DEPOIS das configs carregarem (painel admin terá os dados)
+    if (sessaoSalva) aplicarSessao(sessaoSalva);
 
   } catch(e) {
     console.warn("Erro ao carregar configurações:", e);
-    // Fallback de emergência — só funciona se o Supabase falhar
     SENHA_ADMIN_DIN   = "fatal-fallback-admin";
     SENHA_CLIENTE_DIN = "fatal-fallback-cliente";
     senhasCarregadas  = true;
+    if (sessaoSalva) aplicarSessao(sessaoSalva);
   } finally {
-    // Libera o botão de login
     loginBtn.textContent = "Entrar";
     loginBtn.disabled    = false;
   }
