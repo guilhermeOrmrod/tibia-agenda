@@ -1540,3 +1540,49 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   .admin-input-row { flex-direction: column; }
   .btn-admin-salvar { width: 100%; }
 }
+
+/* ── Horários dos serviceiros nos cards ── */
+.horarios-disponiveis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 0 4px;
+}
+
+.horario-tag {
+  font-size: 10px;
+  font-family: 'Cinzel', serif;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.25);
+  color: rgba(201,168,76,0.85);
+  border-radius: 4px;
+  padding: 2px 7px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ── Horários no painel admin ── */
+.horario-admin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(201,168,76,0.08);
+}
+
+.horario-admin-row:last-child { border-bottom: none; }
+
+.horario-dia {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: var(--gold);
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.horario-horas {
+  font-size: 14px;
+  color: #e8dfc0;
+  flex: 1;
+}

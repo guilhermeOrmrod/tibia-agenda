@@ -70,7 +70,7 @@
           <h3>Master Sorcerer</h3>
         </div>
         <ul class="serviceiros-list" data-vocacao="Master Sorcerer">
-          <li data-nome="Fear"><span class="nome">Fear</span><span class="badge">verificando...</span></li>
+          <li data-nome="Fear"><span class="nome">Fear</span><span class="badge">verificando...</span><span class="horarios-semana"></span></li>
           <li data-nome="Panic"><span class="nome">Panic</span><span class="badge">verificando...</span></li>
           <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span></li>
           <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span></li>
@@ -397,6 +397,43 @@
           <input type="text" id="cfgNovoServiceiro" placeholder="Nome do novo serviceiro">
           <button class="btn-admin-salvar" id="btnAdicionarServiceiro">+ Adicionar</button>
         </div>
+      </div>
+
+      <!-- Horários dos Serviceiros -->
+      <div class="admin-card">
+        <h3>🕐 Horários dos Serviceiros</h3>
+        <div class="admin-grid" style="margin-bottom:14px">
+          <div class="admin-field">
+            <label>Serviceiro</label>
+            <select id="cfgHorarioServiceiro">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label>Dia da semana</label>
+            <select id="cfgHorarioDia">
+              <option value="Segunda">Segunda</option>
+              <option value="Terça">Terça</option>
+              <option value="Quarta">Quarta</option>
+              <option value="Quinta">Quinta</option>
+              <option value="Sexta">Sexta</option>
+              <option value="Sábado">Sábado</option>
+              <option value="Domingo">Domingo</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label>Hora início</label>
+            <input type="time" id="cfgHorarioInicio">
+          </div>
+          <div class="admin-field">
+            <label>Hora fim</label>
+            <input type="time" id="cfgHorarioFim">
+          </div>
+        </div>
+        <div class="admin-input-row" style="margin-bottom:16px">
+          <button class="btn-admin-salvar" id="btnAdicionarHorario">+ Adicionar horário</button>
+        </div>
+        <div id="listaHorariosAdmin"></div>
       </div>
 
     </div>
