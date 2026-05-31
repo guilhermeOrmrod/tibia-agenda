@@ -78,9 +78,10 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.classList.add("active");
     const aba = btn.dataset.tab;
     document.getElementById("tab-" + aba).classList.add("active");
-    if (aba === "agenda")    setTimeout(() => calendar.updateSize(), 50);
-    if (aba === "contatos")  renderizarContatos();
+    if (aba === "agenda")     setTimeout(() => calendar.updateSize(), 50);
+    if (aba === "contatos")   renderizarContatos();
     if (aba === "pagamentos") renderizarPagamentos();
+    if (aba === "admin")      atualizarSelectHorariosAdmin();
   });
 });
 
@@ -756,8 +757,8 @@ function atualizarServiceiros() {
   // Reavalia disponibilidade
   verificarDisponibilidade(dataFiltroEl.value);
 
-  // Carrega e exibe horários nos cards
-  carregarHorariosCards();
+  // Re-renderiza horários nos novos <li> criados (usa cache, sem nova chamada ao Supabase)
+  renderizarHorariosCards();
 }
 
 // Botão: salvar preços
@@ -1024,4 +1025,8 @@ document.getElementById("pgArquivo").addEventListener("change", (e) => {
 
 renderizarContatos();
 renderizarPagamentos();
-carregarHorariosCards();
+
+// Carrega horários após serviceiros estarem prontos
+(async () => {
+  await carregarHorariosCards();
+})();
