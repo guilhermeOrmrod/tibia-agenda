@@ -7,8 +7,16 @@
 const SUPA_URL = "https://lkhnklrjaalxutbnlxsy.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxraG5rbHJqYWFseHV0Ym5seHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjE3NjUsImV4cCI6MjA5NTY5Nzc2NX0.BCifSPGyoI5pN1OTRgpWQQW4rRMnvTO-WOSi1xuIcPk";
 
-// Cliente Supabase Auth
-const _supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+// Cliente Supabase Auth com persistência garantida
+const _supa = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: {
+    persistSession: true,
+    storageKey: "fatal_services_auth",
+    storage: window.localStorage,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 if (!_supa) throw new Error('Supabase não carregou!');
 
 // Sessão atual
@@ -487,14 +495,25 @@ document.getElementById("btnLogin").addEventListener("click", async () => {
 
   if (!email || !senha) { erroEl.textContent = "Preencha email e senha."; return; }
 
-  const { data, error } = await _supa.auth.signInWithPassword({ email, password: senha });
-  if (error) {
-    erroEl.textContent = "Email ou senha incorretos.";
-    return;
+  const btnLogin = document.getElementById("btnLogin");
+  btnLogin.disabled = true;
+  btnLogin.textContent = "⏳ Entrando...";
+
+  try {
+    const { data, error } = await _supa.auth.signInWithPassword({ email, password: senha });
+    if (error) {
+      erroEl.textContent = "Email ou senha incorretos.";
+      return;
+    }
+    document.getElementById("modalAuth").style.display = "none";
+    document.getElementById("loginEmail").value = "";
+    document.getElementById("loginSenha").value = "";
+  } catch(e) {
+    erroEl.textContent = "Erro de conexão. Tente novamente.";
+  } finally {
+    btnLogin.disabled = false;
+    btnLogin.textContent = "⚔️ Entrar";
   }
-  document.getElementById("modalAuth").style.display = "none";
-  document.getElementById("loginEmail").value = "";
-  document.getElementById("loginSenha").value = "";
 });
 
 // ── Cadastro ──
@@ -593,11 +612,18 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 
 // ── Escuta mudanças de sessão ──
 let inicializacaoConcluida = false;
+let aplicandoSessao = false; // evita chamadas simultâneas
 
 _supa.auth.onAuthStateChange(async (event, session) => {
-  // Ignora SIGNED_OUT durante carregamento inicial (falso positivo do refresh)
-  if (event === "SIGNED_OUT" && !inicializacaoConcluida) return;
-  await aplicarSessao(session);
+  // Ignora eventos durante inicialização exceto SIGNED_IN e INITIAL_SESSION
+  if (!inicializacaoConcluida && event === "SIGNED_OUT") return;
+  if (aplicandoSessao) return;
+  aplicandoSessao = true;
+  try {
+    await aplicarSessao(session);
+  } finally {
+    aplicandoSessao = false;
+  }
 });
 
 // ── Pré-preenche nick ao focar no formulário ──
@@ -2308,9 +2334,15 @@ async function expirarPendentesVencidos() {
   // 5. Restaura sessão Supabase Auth
   try {
     const { data: { session } } = await _supa.auth.getSession();
-    if (session) await aplicarSessao(session);
-  } catch(e) { console.warn("Erro sessão:", e); }
-  finally {
+    if (session) {
+      aplicandoSessao = true;
+      await aplicarSessao(session);
+      aplicandoSessao = false;
+    }
+  } catch(e) {
+    console.warn("Erro sessão:", e);
+    aplicandoSessao = false;
+  } finally {
     inicializacaoConcluida = true;
   }
 })();
