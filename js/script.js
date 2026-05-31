@@ -130,7 +130,8 @@ let agendamentosCache = [];
 
 async function verificarDisponibilidade(dataSelecionada) {
   try {
-    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00-03:00&inicio=lte.${dataSelecionada}T23:59:59-03:00`);
+    // Só conta como ocupado: pendente, aprovado e em_andamento
+    agendamentosCache = await supaGet("agendamentos", `inicio=gte.${dataSelecionada}T00:00:00-03:00&inicio=lte.${dataSelecionada}T23:59:59-03:00&status=in.(pendente,aprovado,em_andamento)`);
   } catch(e) {
     agendamentosCache = [];
   }
