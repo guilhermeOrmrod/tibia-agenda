@@ -757,7 +757,23 @@ async function carregarAgendamentosPendentes(status = "pendente") {
       btn.addEventListener("click", () => recusarAgendamento(btn.dataset.agRecusar));
     });
     container.querySelectorAll("[data-ag-andamento]").forEach(btn => {
-      btn.addEventListener("click", () => atualizarStatusAg(btn.dataset.agAndamento, "em_andamento", "⚔️ Serviço iniciado!"));
+      const ag = ags.find(a => a.id === btn.dataset.agAndamento);
+      btn.addEventListener("click", () => {
+        const agora  = new Date();
+        const inicio = new Date(ag.inicio);
+        if (agora < inicio) {
+          const diff    = Math.ceil((inicio - agora) / 60000);
+          const horas   = Math.floor(diff / 60);
+          const minutos = diff % 60;
+          const tempo   = horas > 0 ? `${horas}h${minutos > 0 ? minutos + "min" : ""}` : `${diff}min`;
+          mostrarMensagem(
+            `⚠️ O serviço só pode ser iniciado a partir de ${inicio.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}. Faltam ${tempo}.`,
+            "erro"
+          );
+          return;
+        }
+        atualizarStatusAg(btn.dataset.agAndamento, "em_andamento", "⚔️ Serviço iniciado!");
+      });
     });
     container.querySelectorAll("[data-ag-concluir]").forEach(btn => {
       const ag = ags.find(a => a.id === btn.dataset.agConcluir);
@@ -775,8 +791,14 @@ function gerarAcoesAdmin(ag) {
     </div>`;
   }
   if (ag.status === "aprovado") {
+    const agora    = new Date();
+    const inicio   = new Date(ag.inicio);
+    const podeInic = agora >= inicio;
+    const titleInic = podeInic ? "" : `title="Disponível a partir de ${inicio.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}"`;
     return `<div class="pg-acoes">
-      <button class="btn-andamento" data-ag-andamento="${ag.id}">⚔️ Iniciar serviço</button>
+      <button class="btn-andamento${podeInic ? "" : " btn-concluir-bloqueado"}" data-ag-andamento="${ag.id}" ${titleInic}>
+        ⚔️ ${podeInic ? "Iniciar serviço" : "Aguardando data/hora"}
+      </button>
       <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Cancelar</button>
     </div>`;
   }
