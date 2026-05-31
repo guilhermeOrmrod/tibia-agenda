@@ -218,6 +218,27 @@ function popularSelectServiceiroPagamento() {
   sel.value = atual;
 }
 
+// ── Modal de número de chamado ───────────────
+function mostrarModalChamado(numero) {
+  // Remove modal anterior se existir
+  const antigo = document.getElementById("modalChamado");
+  if (antigo) antigo.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modalChamado";
+  modal.innerHTML = `
+    <div class="chamado-box">
+      <div class="chamado-icon">🎫</div>
+      <h3>Chamado criado com sucesso!</h3>
+      <div class="chamado-numero">#${numero}</div>
+      <p>Anote esse número. Acesse a aba <strong>Histórico</strong> e busque pelo chamado <strong>#${numero}</strong> para acompanhar o status do seu serviço.</p>
+      <button id="btnFecharChamado">Entendido!</button>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById("btnFecharChamado").addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
+}
+
 // ── Limpa highlight de erro ────────────────
 ["nome","data","horaInicio","horaFim","tipo","hunt","huntCustom","vocacao","serviceiro"].forEach(id => {
   const el = document.getElementById(id);
@@ -471,7 +492,8 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
 
   // Não adiciona ao calendário — só aparece após aprovação
   verificarDisponibilidade(dataFiltroEl.value);
-  mostrarMensagem(`📋 Agendamento enviado! Seu chamado é <strong>#${numeroChamado}</strong> — anote esse número para acompanhar no Histórico.`, "sucesso");
+  // Mostra modal com o número do chamado
+  mostrarModalChamado(numeroChamado);
   e.target.reset();
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   document.getElementById("huntCustom").style.display = "none";
@@ -800,32 +822,34 @@ async function carregarAgendamentosPendentes(status = "pendente") {
 }
 
 function gerarAcoesAdmin(ag) {
+  const agora  = new Date();
+  const inicio = new Date(ag.inicio);
+  const fim    = new Date(ag.fim);
+
   if (ag.status === "pendente") {
     return `<div class="pg-acoes">
-      <button class="btn-aprovar" data-ag-id="${ag.id}">✅ Aprovar</button>
-      <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Recusar</button>
+      <button class="btn-aprovar"  data-ag-id="${ag.id}">✅ Aprovar</button>
+      <button class="btn-recusar"  data-ag-recusar="${ag.id}">❌ Recusar</button>
     </div>`;
   }
+
   if (ag.status === "aprovado") {
-    const agora    = new Date();
-    const inicio   = new Date(ag.inicio);
-    const podeInic = agora >= inicio;
+    const podeInic  = agora >= inicio;
     const titleInic = podeInic ? "" : `title="Disponível a partir de ${inicio.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}"`;
     return `<div class="pg-acoes">
       <button class="btn-andamento${podeInic ? "" : " btn-concluir-bloqueado"}" data-ag-andamento="${ag.id}" ${titleInic}>
         ⚔️ ${podeInic ? "Iniciar serviço" : "Aguardando data/hora"}
       </button>
       <button class="btn-encerrar" data-ag-encerrar="${ag.id}">🛑 Encerrar</button>
-      <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Cancelar</button>
+      <button class="btn-recusar"  data-ag-recusar="${ag.id}">🚫 Cancelar</button>
     </div>`;
   }
+
   if (ag.status === "em_andamento") {
-    const agora = new Date();
-    const fim   = new Date(ag.fim);
-    const podeConc = agora >= fim;
-    const btnTitle = podeConc ? "" : `title="Disponível após ${fim.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}"`;
+    const podeConc  = agora >= fim;
+    const titleConc = podeConc ? "" : `title="Disponível após ${fim.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}"`;
     return `<div class="pg-acoes">
-      <button class="btn-concluir${podeConc ? "" : " btn-concluir-bloqueado"}" data-ag-concluir="${ag.id}" ${btnTitle}>
+      <button class="btn-concluir${podeConc ? "" : " btn-concluir-bloqueado"}" data-ag-concluir="${ag.id}" ${titleConc}>
         🏆 ${podeConc ? "Marcar concluído" : "Aguardando horário de fim"}
       </button>
       <button class="btn-encerrar" data-ag-encerrar="${ag.id}">🛑 Encerrar antecipadamente</button>
@@ -850,31 +874,25 @@ async function aprovarAgendamento(id, lista) {
 }
 
 async function recusarAgendamento(id, statusAtual) {
-  // Pendentes são recusados, aprovados/em andamento são cancelados
   const eCancelamento = statusAtual === "aprovado" || statusAtual === "em_andamento";
+  const label = eCancelamento ? "cancelamento" : "recusa";
 
-  let motivo = "";
-  if (eCancelamento) {
-    motivo = prompt("Motivo do cancelamento (obrigatório):");
-    if (!motivo || motivo.trim() === "") {
-      mostrarMensagem("⚠️ Informe o motivo do cancelamento.", "erro");
-      return;
-    }
-  } else {
-    if (!confirm("Recusar este agendamento?")) return;
+  const motivo = prompt(`Motivo do ${label} (obrigatório):`);
+  if (!motivo || motivo.trim() === "") {
+    mostrarMensagem(`⚠️ Informe o motivo do ${label}.`, "erro");
+    return;
   }
 
   const novoStatus = eCancelamento ? "cancelado" : "recusado";
-  const obsCanc    = eCancelamento ? "🚫 Cancelado: " + motivo.trim() : "";
-  await supaPatch("agendamentos", id, { status: novoStatus, obs_conclusao: obsCanc });
+  const icone      = eCancelamento ? "🚫" : "❌";
+  const obs        = `${icone} ${eCancelamento ? "Cancelado" : "Recusado"}: ${motivo.trim()}`;
 
-  const evCalendario = calendar.getEventById(id);
-  if (evCalendario) evCalendario.remove();
+  await supaPatch("agendamentos", id, { status: novoStatus, obs_conclusao: obs });
 
-  mostrarMensagem(
-    eCancelamento ? "🚫 Agendamento cancelado." : "❌ Agendamento recusado.",
-    "erro"
-  );
+  const ev = calendar.getEventById(id);
+  if (ev) ev.remove();
+
+  mostrarMensagem(`${icone} Agendamento ${novoStatus}.`, "erro");
   carregarAgendamentosPendentes(abaAgAtual);
   verificarDisponibilidade(dataFiltroEl.value);
 }
@@ -896,7 +914,7 @@ async function encerrarAgendamento(ag) {
   }
   await supaPatch("agendamentos", ag.id, {
     status: "encerrado",
-    obs_conclusao: "🛑 Encerrado: " + motivo.trim()
+    obs_conclusao: `🛑 Encerrado antecipadamente: ${motivo.trim()}`
   });
   const ev = calendar.getEventById(ag.id);
   if (ev) ev.setProp("color", "#e05a3a");
@@ -909,26 +927,22 @@ async function concluirAgendamento(ag) {
   const agora = new Date();
   const fim   = new Date(ag.fim);
 
-  // Só pode concluir depois do horário de fim do agendamento
   if (agora < fim) {
-    const minutosRestantes = Math.ceil((fim - agora) / 60000);
-    const horasRestantes   = Math.floor(minutosRestantes / 60);
-    const minRest          = minutosRestantes % 60;
-    const tempoMsg = horasRestantes > 0
-      ? `${horasRestantes}h${minRest > 0 ? minRest + "min" : ""}`
-      : `${minutosRestantes}min`;
+    const min  = Math.ceil((fim - agora) / 60000);
+    const h    = Math.floor(min / 60);
+    const m    = min % 60;
+    const tempo = h > 0 ? `${h}h${m > 0 ? m + "min" : ""}` : `${min}min`;
     mostrarMensagem(
-      `⚠️ O serviço só pode ser concluído após o horário de fim. Faltam ${tempoMsg} (${fim.toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}).`,
+      `⚠️ O serviço só pode ser concluído após o horário de fim. Faltam ${tempo} (${fim.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}).`,
       "erro"
     );
     return;
   }
 
   const obs = prompt("Observação da conclusão (opcional):");
-  await supaPatch("agendamentos", ag.id, {
-    status: "concluido",
-    obs_conclusao: obs || ""
-  });
+  const obsTexto = obs && obs.trim() ? `✅ Concluído: ${obs.trim()}` : "✅ Concluído com sucesso.";
+
+  await supaPatch("agendamentos", ag.id, { status: "concluido", obs_conclusao: obsTexto });
   const ev = calendar.getEventById(ag.id);
   if (ev) ev.setProp("color", "#4caf6e");
   mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");

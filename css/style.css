@@ -2229,3 +2229,86 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 #filtroChamado::-webkit-outer-spin-button,
 #filtroChamado::-webkit-inner-spin-button { -webkit-appearance: none; }
 #filtroChamado { -moz-appearance: textfield; }
+
+/* ── Modal de chamado ── */
+#modalChamado {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chamado-box {
+  background: #1a1a2a;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
+  border-radius: 14px;
+  padding: 36px 32px;
+  width: 380px;
+  max-width: 92vw;
+  text-align: center;
+}
+
+.chamado-icon { font-size: 40px; margin-bottom: 12px; }
+
+.chamado-box h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 16px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.chamado-numero {
+  font-family: 'Cinzel', serif;
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(201,168,76,0.1);
+  border: 2px solid rgba(201,168,76,0.4);
+  border-radius: 12px;
+  padding: 12px 24px;
+  margin: 0 auto 20px;
+  display: inline-block;
+  letter-spacing: 4px;
+}
+
+.chamado-box p {
+  font-size: 14px;
+  color: rgba(232,223,192,0.7);
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.chamado-box p strong { color: var(--gold); }
+
+.chamado-box button {
+  background: var(--gold);
+  color: #0a0a0f;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.2s;
+  letter-spacing: 1px;
+}
+.chamado-box button:hover { background: var(--gold-light); }
+
+/* ── Observação no histórico destacada ── */
+.hc-obs {
+  font-size: 13px;
+  color: rgba(232,223,192,0.6);
+  font-style: italic;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border-left: 2px solid rgba(201,168,76,0.3);
+  border-radius: 0 4px 4px 0;
+}
