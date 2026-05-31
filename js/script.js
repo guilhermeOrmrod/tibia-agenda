@@ -54,21 +54,42 @@ async function supaDelete(tabela, id) {
 
 // ── Ações privilegiadas via Edge Function (service_role) ──
 async function adminAction(acao, tabela, id = null, dados = null) {
-  // Usa a senha admin atual como token de autenticação
-  const token = SENHA_ADMIN_DIN;
+  // Sempre usa a senha admin como token (só admin chama isso)
+  if (!SENHA_ADMIN_DIN) throw new Error("Ação requer permissão de admin.");
   const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
     method: "POST",
     headers: {
-      "Content-Type":   "application/json",
-      "apikey":         SUPA_KEY,
-      "Authorization":  "Bearer " + SUPA_KEY,
-      "x-admin-token":  token
+      "Content-Type":  "application/json",
+      "apikey":        SUPA_KEY,
+      "Authorization": "Bearer " + SUPA_KEY,
+      "x-admin-token": SENHA_ADMIN_DIN
     },
     body: JSON.stringify({ acao, tabela, id, dados })
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Erro na ação admin");
+  }
+  return res.json();
+}
+
+// Ação via service_role usando JWT do usuário logado (para serviceiros)
+async function supaAction(acao, tabela, id = null, dados = null) {
+  if (!sessaoAuth) throw new Error("Não autenticado.");
+  const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "apikey":        SUPA_KEY,
+      "Authorization": "Bearer " + SUPA_KEY,
+      "x-admin-token": SENHA_ADMIN_DIN || "",
+      "x-user-jwt":   sessaoAuth.access_token
+    },
+    body: JSON.stringify({ acao, tabela, id, dados, userRole: tipoUsuario })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Erro na operação");
   }
   return res.json();
 }
@@ -342,7 +363,7 @@ async function carregarCalendario() {
   }
 }
 
-carregarCalendario();
+// carregarCalendario() é chamado após auth restaurada
 
 // =========================================
 // SISTEMA DE AUTENTICAÇÃO — Supabase Auth
@@ -424,7 +445,11 @@ function atualizarUI() {
   carregarHistorico();
   popularSelectServiceiroPagamento();
 
+  // Carrega calendário e horários
+  carregarCalendario();
+
   if (isAdmin) carregarPainelAdmin();
+  if (tipoUsuario === "serviceiro") carregarPainelServiceiro();
 }
 
 // ── Modal de Auth ──
@@ -502,10 +527,13 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
 
   if (error) { erroEl.textContent = error.message; return; }
 
-  // Marca convite como usado (clientes)
+  // Marca convite como usado (via supaPatch — RLS permite update de convites pelo anon)
   if (tipo === "cliente" && convite) {
-    const conviteRow = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}`);
-    if (conviteRow[0]) await adminAction("update", "convites", conviteRow[0].id, { usado: true });
+    await fetch(`${SUPA_URL}/rest/v1/convites?codigo=eq.${encodeURIComponent(convite)}`, {
+      method: "PATCH",
+      headers: { ...HEADERS, "Prefer": "return=minimal" },
+      body: JSON.stringify({ usado: true })
+    });
   }
 
   document.getElementById("modalAuth").style.display = "none";
@@ -525,6 +553,14 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 // ── Escuta mudanças de sessão ──
 supabase.auth.onAuthStateChange(async (event, session) => {
   await aplicarSessao(session);
+});
+
+// ── Pré-preenche nick ao focar no formulário ──
+document.getElementById("formAgendamento")?.addEventListener("focusin", () => {
+  const nomeEl = document.getElementById("nome");
+  if (nomeEl && !nomeEl.value && perfilAtual?.nick) {
+    nomeEl.value = perfilAtual.nick;
+  }
 });
 
 // ── Formulário de agendamento ─────────────
@@ -1096,11 +1132,11 @@ async function recusarAgendamento(id, statusAtual) {
 
 async function atualizarStatusAg(id, novoStatus, msg) {
   await adminAction("update", "agendamentos", id, { status: novoStatus });
-  // Atualiza cor no calendário
   const ev = calendar.getEventById(id);
   if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
   mostrarMensagem(msg, "sucesso");
-  carregarAgendamentosPendentes(abaAgAtual);
+  if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
+  if (tipoUsuario === "serviceiro") carregarMeusAgendamentos(novoStatus === "em_andamento" ? "aprovado" : "em_andamento");
 }
 
 async function encerrarAgendamento(ag) {
@@ -1374,7 +1410,123 @@ async function carregarUsuarios(filtroRole = "pendente") {
 async function gerarCodigoConvite() {
   const codigo = Math.random().toString(36).substring(2, 10).toUpperCase();
   await adminAction("insert", "convites", null, { codigo, usado: false });
+  mostrarMensagem(`🎟️ Código de convite gerado: ${codigo} — copie e envie ao cliente!`, "sucesso");
   return codigo;
+}
+
+// ── Botão gerar convite ──
+document.getElementById("btnGerarConvite")?.addEventListener("click", gerarCodigoConvite);
+
+// ── FIX 7: Painel do Serviceiro ──
+async function carregarPainelServiceiro() {
+  if (tipoUsuario !== "serviceiro" || !perfilAtual) return;
+
+  // Mostra aba exclusiva do serviceiro
+  const navAdmin = document.getElementById("btnNavAdmin");
+  navAdmin.style.display = "inline-block";
+  navAdmin.textContent = "⚔️ Meus Serviços";
+  navAdmin.dataset.tab = "serviceiro-painel";
+
+  // Inicializa abas do painel serviceiro
+  document.querySelectorAll(".srv-ag-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".srv-ag-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      carregarMeusAgendamentos(tab.dataset.srvTab);
+    });
+  });
+
+  carregarMeusAgendamentos("pendente");
+}
+
+async function carregarMeusAgendamentos(status = "pendente") {
+  if (!perfilAtual) return;
+  const nick = perfilAtual.nick;
+  const container = document.getElementById("listaMeusAgendamentos");
+  if (!container) return;
+  container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
+
+  const ags = await supaGet("agendamentos",
+    `serviceiro=eq.${encodeURIComponent(nick)}&status=eq.${status}&order=inicio.asc`
+  );
+
+  if (ags.length === 0) {
+    container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">Nenhum agendamento ${STATUS_LABELS[status]?.toLowerCase() || status}.</p>`;
+    return;
+  }
+
+  container.innerHTML = ags.map(ag => {
+    const agora  = new Date();
+    const inicio = new Date(ag.inicio);
+    const fim    = new Date(ag.fim);
+    let acoes = "";
+
+    if (ag.status === "pendente") {
+      acoes = `<div class="pg-acoes">
+        <button class="btn-aprovar" data-ag-id="${ag.id}" data-ag-list='${JSON.stringify(ags)}'>✅ Aceitar</button>
+        <button class="btn-recusar" data-ag-recusar="${ag.id}" data-ag-status="pendente">❌ Recusar</button>
+      </div>`;
+    } else if (ag.status === "aprovado") {
+      const podeInic = agora >= inicio;
+      acoes = `<div class="pg-acoes">
+        <button class="btn-andamento${podeInic ? "" : " btn-concluir-bloqueado"}" data-ag-andamento="${ag.id}"
+          ${podeInic ? "" : `title="Disponível a partir de ${inicio.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}"`}>
+          ⚔️ ${podeInic ? "Iniciar" : "Aguardando horário"}
+        </button>
+        <button class="btn-encerrar" data-ag-encerrar="${ag.id}">🛑 Encerrar</button>
+      </div>`;
+    } else if (ag.status === "em_andamento") {
+      const podeConc = agora >= fim;
+      acoes = `<div class="pg-acoes">
+        <button class="btn-concluir${podeConc ? "" : " btn-concluir-bloqueado"}" data-ag-concluir="${ag.id}"
+          ${podeConc ? "" : `title="Disponível após ${fim.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}"`}>
+          🏆 ${podeConc ? "Concluir" : "Aguardando fim"}
+        </button>
+        <button class="btn-encerrar" data-ag-encerrar="${ag.id}">🛑 Encerrar</button>
+      </div>`;
+    }
+
+    return `
+      <div class="agendamento-card ${ag.status}">
+        <div class="ag-header">
+          <span class="ag-nome">${ag.numero_chamado ? `<span class="ag-chamado">#${ag.numero_chamado}</span>` : ""} ${ag.nome_cliente}</span>
+          <span class="ag-status-badge">${STATUS_ICONS[ag.status]} ${STATUS_LABELS[ag.status]}</span>
+        </div>
+        <div class="ag-info">
+          <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
+          <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
+          ${ag.obs_conclusao ? `<span style="font-style:italic;color:rgba(232,223,192,0.6)">📝 ${ag.obs_conclusao}</span>` : ""}
+        </div>
+        ${acoes}
+      </div>`;
+  }).join("");
+
+  // Listeners — reutiliza as funções do admin
+  container.querySelectorAll(".btn-aprovar[data-ag-id]").forEach(btn => {
+    btn.addEventListener("click", () => aprovarAgendamento(btn.dataset.agId, ags));
+  });
+  container.querySelectorAll("[data-ag-recusar]").forEach(btn => {
+    btn.addEventListener("click", () => recusarAgendamento(btn.dataset.agRecusar, btn.dataset.agStatus));
+  });
+  container.querySelectorAll("[data-ag-andamento]").forEach(btn => {
+    const ag = ags.find(a => a.id === btn.dataset.agAndamento);
+    btn.addEventListener("click", () => {
+      const agora = new Date(), inicio = new Date(ag.inicio);
+      if (agora < inicio) {
+        const diff = Math.ceil((inicio-agora)/60000);
+        mostrarMensagem(`⚠️ Serviço começa em ${diff}min.`, "erro"); return;
+      }
+      atualizarStatusAg(btn.dataset.agAndamento, "em_andamento", "⚔️ Serviço iniciado!");
+    });
+  });
+  container.querySelectorAll("[data-ag-concluir]").forEach(btn => {
+    const ag = ags.find(a => a.id === btn.dataset.agConcluir);
+    btn.addEventListener("click", () => concluirAgendamento(ag));
+  });
+  container.querySelectorAll("[data-ag-encerrar]").forEach(btn => {
+    const ag = ags.find(a => a.id === btn.dataset.agEncerrar);
+    btn.addEventListener("click", () => encerrarAgendamento(ag));
+  });
 }
 
 // =========================================
@@ -1974,8 +2126,8 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
 
 // ── Inicializa ────────────────────────────
 (async () => {
-  // Carrega configurações públicas (hunts, serviceiros, preços)
   try {
+    // 1. Carrega configurações públicas
     const rows = await supaGet("configuracoes", "");
     rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
     atualizarSelectHunts();
@@ -1988,15 +2140,13 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
     }
   } catch(e) { console.warn("Erro ao carregar configs:", e); }
 
-  // Restaura sessão do Supabase Auth (se já estava logado)
-  const { data: { session } } = await supabase.auth.getSession();
-  await aplicarSessao(session);
-})();
-
-renderizarContatos();
-renderizarPagamentos();
-
-// Carrega horários após serviceiros estarem prontos
-(async () => {
+  // 2. Carrega horários e disponibilidade
   await carregarHorariosCards();
+  verificarDisponibilidade(dataFiltroEl.value);
+
+  // 3. Carrega dados públicos
+  renderizarContatos();
+  renderizarPagamentos();
+
+  // 4. onAuthStateChange já restaura sessão automaticamente via evento INITIAL_SESSION
 })();

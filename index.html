@@ -468,7 +468,10 @@
 
       <!-- Gestão de Usuários -->
       <div class="admin-card" id="cardUsuarios">
-        <h3>👥 Gestão de Usuários</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">👥 Gestão de Usuários</h3>
+          <button class="btn-admin-salvar" id="btnGerarConvite">🎟️ Gerar convite</button>
+        </div>
         <div class="admin-ag-tabs">
           <button class="admin-ag-tab active" data-usr-tab="pendente">⏳ Pendentes</button>
           <button class="admin-ag-tab" data-usr-tab="serviceiro">⚔️ Serviceiros</button>
@@ -505,6 +508,23 @@
           <div id="dashAvaliacoes"></div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ABA: Painel Serviceiro -->
+  <section id="tab-serviceiro-painel" class="tab-content">
+    <div class="section-header">
+      <h2>⚔️ Meus Agendamentos</h2>
+    </div>
+    <div style="max-width:900px;margin:0 auto;padding:0 24px">
+      <div class="admin-ag-tabs" style="margin-bottom:16px">
+        <button class="srv-ag-tab active" data-srv-tab="pendente">⏳ Pendentes</button>
+        <button class="srv-ag-tab" data-srv-tab="aprovado">✅ Aprovados</button>
+        <button class="srv-ag-tab" data-srv-tab="em_andamento">⚔️ Em andamento</button>
+        <button class="srv-ag-tab" data-srv-tab="concluido">🏆 Concluídos</button>
+        <button class="srv-ag-tab" data-srv-tab="encerrado">🛑 Encerrados</button>
+      </div>
+      <div id="listaMeusAgendamentos"></div>
     </div>
   </section>
 
