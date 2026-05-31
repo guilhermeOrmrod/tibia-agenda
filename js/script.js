@@ -592,7 +592,11 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 });
 
 // ── Escuta mudanças de sessão ──
+let inicializacaoConcluida = false;
+
 _supa.auth.onAuthStateChange(async (event, session) => {
+  // Ignora SIGNED_OUT durante carregamento inicial (falso positivo do refresh)
+  if (event === "SIGNED_OUT" && !inicializacaoConcluida) return;
   await aplicarSessao(session);
 });
 
@@ -2306,4 +2310,7 @@ async function expirarPendentesVencidos() {
     const { data: { session } } = await _supa.auth.getSession();
     if (session) await aplicarSessao(session);
   } catch(e) { console.warn("Erro sessão:", e); }
+  finally {
+    inicializacaoConcluida = true;
+  }
 })();
