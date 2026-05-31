@@ -267,8 +267,8 @@ window.addEventListener("resize", () => calendar.updateSize());
 async function carregarCalendario() {
   try {
     // Carrega agendamentos aprovados e em andamento no calendário
-    const STATUS_CORES = { aprovado: "#9333ea", em_andamento: "#378add", concluido: "#4caf6e" };
-    const eventos = await supaGet("agendamentos", "status=in.(aprovado,em_andamento,concluido)&order=inicio.asc");
+    const STATUS_CORES = { aprovado: "#9333ea", em_andamento: "#378add", concluido: "#4caf6e", encerrado: "#e05a3a" };
+    const eventos = await supaGet("agendamentos", "status=in.(aprovado,em_andamento,concluido,encerrado)&order=inicio.asc");
     eventos.forEach(ev => {
       calendar.addEvent({
         id:         ev.id,
@@ -688,7 +688,8 @@ const STATUS_ICONS = {
   aprovado:     "✅",
   em_andamento: "⚔️",
   concluido:    "🏆",
-  recusado:     "❌"
+  recusado:     "❌",
+  encerrado:    "🛑"
 };
 
 const STATUS_LABELS = {
@@ -696,7 +697,8 @@ const STATUS_LABELS = {
   aprovado:     "Aprovado",
   em_andamento: "Em andamento",
   concluido:    "Concluído",
-  recusado:     "Recusado"
+  recusado:     "Recusado",
+  encerrado:    "Encerrado"
 };
 
 let abaAgAtual = "pendente";
@@ -780,6 +782,11 @@ async function carregarAgendamentosPendentes(status = "pendente") {
       btn.addEventListener("click", () => concluirAgendamento(ag));
     });
 
+    container.querySelectorAll("[data-ag-encerrar]").forEach(btn => {
+      const ag = ags.find(a => a.id === btn.dataset.agEncerrar);
+      btn.addEventListener("click", () => encerrarAgendamento(ag));
+    });
+
   } catch(e) { console.error("Erro ao carregar agendamentos:", e); }
 }
 
@@ -799,6 +806,7 @@ function gerarAcoesAdmin(ag) {
       <button class="btn-andamento${podeInic ? "" : " btn-concluir-bloqueado"}" data-ag-andamento="${ag.id}" ${titleInic}>
         ⚔️ ${podeInic ? "Iniciar serviço" : "Aguardando data/hora"}
       </button>
+      <button class="btn-encerrar" data-ag-encerrar="${ag.id}">🛑 Encerrar</button>
       <button class="btn-recusar" data-ag-recusar="${ag.id}">❌ Cancelar</button>
     </div>`;
   }
@@ -811,6 +819,7 @@ function gerarAcoesAdmin(ag) {
       <button class="btn-concluir${podeConc ? "" : " btn-concluir-bloqueado"}" data-ag-concluir="${ag.id}" ${btnTitle}>
         🏆 ${podeConc ? "Marcar concluído" : "Aguardando horário de fim"}
       </button>
+      <button class="btn-encerrar" data-ag-encerrar="${ag.id}">🛑 Encerrar antecipadamente</button>
     </div>`;
   }
   return "";
@@ -850,6 +859,23 @@ async function atualizarStatusAg(id, novoStatus, msg) {
   if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
   mostrarMensagem(msg, "sucesso");
   carregarAgendamentosPendentes(abaAgAtual);
+}
+
+async function encerrarAgendamento(ag) {
+  const motivo = prompt("Motivo do encerramento antecipado (obrigatório):");
+  if (!motivo || motivo.trim() === "") {
+    mostrarMensagem("⚠️ Informe o motivo do encerramento.", "erro");
+    return;
+  }
+  await supaPatch("agendamentos", ag.id, {
+    status: "encerrado",
+    obs_conclusao: "🛑 Encerrado: " + motivo.trim()
+  });
+  const ev = calendar.getEventById(ag.id);
+  if (ev) ev.setProp("color", "#e05a3a");
+  mostrarMensagem("🛑 Serviço encerrado antecipadamente.", "erro");
+  carregarAgendamentosPendentes(abaAgAtual);
+  verificarDisponibilidade(dataFiltroEl.value);
 }
 
 async function concluirAgendamento(ag) {

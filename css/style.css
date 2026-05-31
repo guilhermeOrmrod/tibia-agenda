@@ -2146,3 +2146,34 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 .btn-concluir-bloqueado:hover {
   background: rgba(76,175,110,0.06) !important;
 }
+
+/* ── Status encerrado ── */
+.historico-card.status-encerrado {
+  border-left: 3px solid #e05a3a;
+  opacity: 0.85;
+}
+
+.hc-badge.encerrado {
+  background: rgba(224,90,58,0.15);
+  color: #e05a3a;
+  border: 1px solid rgba(224,90,58,0.35);
+}
+
+.agendamento-card.encerrado {
+  border-left: 3px solid #e05a3a;
+  opacity: 0.85;
+}
+
+.btn-encerrar {
+  background: rgba(224,90,58,0.12);
+  border: 1px solid rgba(224,90,58,0.35);
+  color: #e05a3a;
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'Cinzel', serif;
+  cursor: pointer;
+  width: auto;
+  transition: background 0.2s;
+}
+.btn-encerrar:hover { background: rgba(224,90,58,0.25); }
