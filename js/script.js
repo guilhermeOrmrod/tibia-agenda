@@ -471,11 +471,7 @@ document.querySelectorAll(".auth-tab").forEach(tab => {
   });
 });
 
-// Mostra/oculta campo de convite conforme tipo
-document.getElementById("cadTipo").addEventListener("change", () => {
-  document.getElementById("campoConvite").style.display =
-    document.getElementById("cadTipo").value === "cliente" ? "flex" : "none";
-});
+// campo de convite sempre visível (tipo detectado pelo código)
 
 // ── Login ──
 document.getElementById("btnLogin").addEventListener("click", async () => {
@@ -501,43 +497,59 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
   const nick    = document.getElementById("cadNick").value.trim();
   const email   = document.getElementById("cadEmail").value.trim();
   const senha   = document.getElementById("cadSenha").value;
-  const tipo    = document.getElementById("cadTipo").value;
-  const convite = document.getElementById("cadConvite").value.trim();
+  const convite = document.getElementById("cadConvite").value.trim().toUpperCase();
   const erroEl  = document.getElementById("cadErro");
   erroEl.textContent = "";
 
   if (!nick || !email || !senha) { erroEl.textContent = "Preencha todos os campos."; return; }
   if (senha.length < 6) { erroEl.textContent = "Senha deve ter ao menos 6 caracteres."; return; }
   if (!/^[a-zA-ZÀ-ÿ ]+$/.test(nick)) { erroEl.textContent = "Nick inválido — só letras e espaços."; return; }
+  if (!convite) { erroEl.textContent = "Informe o código de convite."; return; }
 
-  // Valida código de convite para clientes
-  if (tipo === "cliente") {
-    if (!convite) { erroEl.textContent = "Informe o código de convite."; return; }
-    const convites = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}&usado=eq.false`);
-    if (convites.length === 0) { erroEl.textContent = "Código de convite inválido ou já usado."; return; }
+  // Valida código e detecta role automaticamente
+  const conviteRows = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}&usado=eq.false`);
+  if (conviteRows.length === 0) {
+    erroEl.textContent = "Código de convite inválido ou já usado."; return;
   }
+  const roleDetectada = conviteRows[0].role || "cliente";
 
   const { data, error } = await _supa.auth.signUp({
     email, password: senha,
-    options: { data: { nick, role: tipo } }
+    options: { data: { nick, role: roleDetectada } }
   });
 
   if (error) { erroEl.textContent = error.message; return; }
 
-  // Marca convite como usado (via supaPatch — RLS permite update de convites pelo anon)
-  if (tipo === "cliente" && convite) {
-    await fetch(`${SUPA_URL}/rest/v1/convites?codigo=eq.${encodeURIComponent(convite)}`, {
-      method: "PATCH",
-      headers: { ...HEADERS, "Prefer": "return=minimal" },
-      body: JSON.stringify({ usado: true })
-    });
-  }
+  // Marca convite como usado
+  await fetch(`${SUPA_URL}/rest/v1/convites?codigo=eq.${encodeURIComponent(convite)}`, {
+    method: "PATCH",
+    headers: { ...HEADERS, "Prefer": "return=minimal" },
+    body: JSON.stringify({ usado: true })
+  });
 
   document.getElementById("modalAuth").style.display = "none";
-  if (tipo === "serviceiro") {
-    mostrarMensagem("✅ Cadastro enviado! Aguarde aprovação do admin.", "sucesso");
+  if (roleDetectada === "serviceiro") {
+    mostrarMensagem("⚔️ Cadastro de serviceiro enviado! Aguarde aprovação do admin.", "sucesso");
   } else {
-    mostrarMensagem("✅ Conta criada! Verifique seu email para confirmar.", "sucesso");
+    mostrarMensagem("✅ Conta criada com sucesso! Já pode fazer login.", "sucesso");
+  }
+});
+
+// ── Preview do tipo ao digitar o código ──
+document.getElementById("cadConvite")?.addEventListener("input", async (e) => {
+  const codigo  = e.target.value.trim().toUpperCase();
+  const tipoEl  = document.getElementById("cadConviteTipo");
+  if (!tipoEl) return;
+  if (codigo.length < 4) { tipoEl.textContent = ""; return; }
+
+  const rows = await supaGet("convites", `codigo=eq.${encodeURIComponent(codigo)}&usado=eq.false`);
+  if (rows.length === 0) {
+    tipoEl.textContent = "❌ Código inválido ou já usado";
+    tipoEl.style.color = "#e05a3a";
+  } else {
+    const role = rows[0].role || "cliente";
+    tipoEl.textContent = role === "serviceiro" ? "✅ Código de Serviceiro" : "✅ Código de Cliente";
+    tipoEl.style.color = role === "serviceiro" ? "#a855f7" : "#4caf6e";
   }
 });
 
@@ -1338,12 +1350,18 @@ async function carregarUsuarios(filtroRole = "pendente") {
   const container = document.getElementById("listaUsuarios");
   container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
 
+  // Busca todos os perfis se filtro for "todos", senão filtra por role
+  const ROLE_CORES = {
+    admin:      "rgba(201,168,76,0.2)",
+    serviceiro: "rgba(147,51,234,0.15)",
+    cliente:    "rgba(55,138,221,0.15)",
+    pendente:   "rgba(240,192,64,0.15)"
+  };
+
   try {
-    const { data: perfis, error } = await _supa
-      .from("perfis")
-      .select("*")
-      .eq("role", filtroRole)
-      .order("criado_em", { ascending: false });
+    let query = _supa.from("perfis").select("*").order("criado_em", { ascending: false });
+    if (filtroRole !== "todos") query = query.eq("role", filtroRole);
+    const { data: perfis, error } = await query;
 
     if (error) throw error;
 
@@ -1352,29 +1370,54 @@ async function carregarUsuarios(filtroRole = "pendente") {
       return;
     }
 
-    container.innerHTML = perfis.map(p => `
-      <div class="sugestao-card ${!p.aprovado ? 'nao-lida' : ''}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <div class="sug-nome">${p.nick} <span style="font-size:11px;color:rgba(232,223,192,0.45)">${p.email}</span></div>
-          <span class="hc-badge ${p.role}" style="font-size:10px">${ROLE_LABELS[p.role] || p.role}</span>
+    container.innerHTML = perfis.map(p => {
+      const isSelf = p.id === perfilAtual?.id;
+      return `
+      <div class="usr-card" style="background:${ROLE_CORES[p.role] || 'rgba(255,255,255,0.03)'};border:1px solid rgba(201,168,76,0.15);border-radius:8px;padding:14px 16px;margin-bottom:10px;${!p.aprovado ? 'border-left:3px solid #f0c040' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:15px;font-weight:600;color:#e8dfc0">${p.nick}</span>
+              <span class="hc-badge ${p.role}" style="font-size:10px;padding:2px 8px">${ROLE_LABELS[p.role] || p.role}</span>
+              ${!p.aprovado ? '<span style="font-size:10px;color:#f0c040;font-family:Cinzel,serif">● Aguardando aprovação</span>' : ''}
+              ${isSelf ? '<span style="font-size:10px;color:rgba(232,223,192,0.4);font-family:Cinzel,serif">(você)</span>' : ''}
+            </div>
+            <div style="font-size:12px;color:rgba(232,223,192,0.45)">${p.email}</div>
+            <div style="font-size:11px;color:rgba(232,223,192,0.3);margin-top:2px;font-family:Cinzel,serif">Cadastrado ${new Date(p.criado_em).toLocaleDateString("pt-BR")}</div>
+          </div>
+
+          ${!isSelf ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            ${!p.aprovado ? `<button class="btn-marcar-lida" data-aprovar="${p.id}" style="font-size:11px">✅ Aprovar</button>` : ""}
+            <select class="role-select" data-usr-id="${p.id}" style="font-size:11px;padding:4px 8px;width:auto;margin:0;font-family:Cinzel,serif;background:rgba(255,255,255,0.06);color:#e8dfc0;border:1px solid rgba(201,168,76,0.3);border-radius:5px">
+              <option value="cliente"    ${p.role === "cliente"    ? "selected" : ""}>👤 Cliente</option>
+              <option value="serviceiro" ${p.role === "serviceiro" ? "selected" : ""}>🗡️ Serviceiro</option>
+              <option value="admin"      ${p.role === "admin"      ? "selected" : ""}>⚔️ Admin</option>
+            </select>
+            <button class="btn-admin-salvar" data-salvar-role="${p.id}" style="font-size:11px;padding:5px 10px">Salvar</button>
+            <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-remover-usr="${p.id}">🗑️</button>
+          </div>` : '<span style="font-size:11px;color:rgba(232,223,192,0.3)">Sua conta</span>'}
         </div>
-        <div class="sug-data">Cadastrado em ${new Date(p.criado_em).toLocaleString("pt-BR")}</div>
-        <div class="sug-acoes" style="margin-top:10px;flex-wrap:wrap;gap:6px">
-          ${!p.aprovado ? `<button class="btn-marcar-lida" data-aprovar="${p.id}">✅ Aprovar</button>` : ""}
-          ${p.role !== "admin" ? `
-            <button class="btn-andamento" data-mudar-role="${p.id}" data-role="serviceiro" style="font-size:10px">🗡️ Serviceiro</button>
-            <button class="btn-andamento" data-mudar-role="${p.id}" data-role="cliente" style="font-size:10px">👤 Cliente</button>
-          ` : ""}
-          <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-remover-usr="${p.id}">🗑️</button>
-        </div>
-      </div>
-    `).join("");
+      </div>`
+    }).join("");
 
     // Aprovar usuário
     container.querySelectorAll("[data-aprovar]").forEach(btn => {
       btn.addEventListener("click", async () => {
         await adminAction("update", "perfis", btn.dataset.aprovar, { aprovado: true });
         mostrarMensagem("✅ Usuário aprovado!", "sucesso");
+        carregarUsuarios(filtroRole);
+      });
+    });
+
+    // Salvar nova role
+    container.querySelectorAll("[data-salvar-role]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id  = btn.dataset.salvarRole;
+        const sel = container.querySelector(`select[data-usr-id="${id}"]`);
+        const novaRole = sel?.value;
+        if (!novaRole) return;
+        await adminAction("update", "perfis", id, { role: novaRole, aprovado: true });
+        mostrarMensagem(`✅ Role alterada para ${ROLE_LABELS[novaRole]}`, "sucesso");
         carregarUsuarios(filtroRole);
       });
     });
@@ -1404,15 +1447,18 @@ async function carregarUsuarios(filtroRole = "pendente") {
 }
 
 // ── Geração de códigos de convite ──
-async function gerarCodigoConvite() {
-  const codigo = Math.random().toString(36).substring(2, 10).toUpperCase();
-  await adminAction("insert", "convites", null, { codigo, usado: false });
-  mostrarMensagem(`🎟️ Código de convite gerado: ${codigo} — copie e envie ao cliente!`, "sucesso");
+async function gerarCodigoConvite(role = "cliente") {
+  const prefixo = role === "serviceiro" ? "SRV" : "CLI";
+  const codigo  = prefixo + "-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  await adminAction("insert", "convites", null, { codigo, usado: false, role });
+  const label = role === "serviceiro" ? "🗡️ Serviceiro" : "👤 Cliente";
+  mostrarMensagem(`🎟️ Código gerado para ${label}: <strong>${codigo}</strong> — copie e envie!`, "sucesso");
   return codigo;
 }
 
-// ── Botão gerar convite ──
-document.getElementById("btnGerarConvite")?.addEventListener("click", gerarCodigoConvite);
+// ── Botões gerar convite ──
+document.getElementById("btnGerarConviteCliente")?.addEventListener("click", () => gerarCodigoConvite("cliente"));
+document.getElementById("btnGerarConviteServiceiro")?.addEventListener("click", () => gerarCodigoConvite("serviceiro"));
 
 // ── FIX 7: Painel do Serviceiro ──
 async function carregarPainelServiceiro() {

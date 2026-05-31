@@ -470,12 +470,15 @@
       <div class="admin-card" id="cardUsuarios">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <h3 style="margin:0">👥 Gestão de Usuários</h3>
-          <button class="btn-admin-salvar" id="btnGerarConvite">🎟️ Gerar convite</button>
+          <button class="btn-admin-salvar" id="btnGerarConviteCliente">👤 Gerar convite cliente</button>
+          <button class="btn-admin-salvar" id="btnGerarConviteServiceiro" style="background:rgba(147,51,234,0.8)">🗡️ Gerar convite serviceiro</button>
         </div>
         <div class="admin-ag-tabs">
           <button class="admin-ag-tab active" data-usr-tab="pendente">⏳ Pendentes</button>
           <button class="admin-ag-tab" data-usr-tab="serviceiro">⚔️ Serviceiros</button>
           <button class="admin-ag-tab" data-usr-tab="cliente">👤 Clientes</button>
+          <button class="admin-ag-tab" data-usr-tab="admin">🛡️ Admins</button>
+          <button class="admin-ag-tab" data-usr-tab="todos">📋 Todos</button>
         </div>
         <div id="listaUsuarios"></div>
       </div>
@@ -649,15 +652,9 @@
           <input type="password" id="cadSenha" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
         </div>
         <div class="auth-field">
-          <label>Tipo de conta</label>
-          <select id="cadTipo">
-            <option value="cliente">👤 Cliente</option>
-            <option value="serviceiro">⚔️ Serviceiro</option>
-          </select>
-        </div>
-        <div class="auth-field" id="campoConvite">
           <label>Código de convite</label>
           <input type="text" id="cadConvite" placeholder="Código fornecido pelo admin" autocomplete="off">
+          <span id="cadConviteTipo" style="font-size:11px;font-family:Cinzel,serif;color:rgba(232,223,192,0.5);margin-top:4px;min-height:16px;display:block"></span>
         </div>
         <button id="btnCadastro">📝 Criar conta</button>
         <p id="cadErro" class="auth-erro"></p>
