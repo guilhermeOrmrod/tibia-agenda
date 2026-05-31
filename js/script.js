@@ -445,9 +445,6 @@ function atualizarUI() {
   carregarHistorico();
   popularSelectServiceiroPagamento();
 
-  // Carrega calendário e horários
-  carregarCalendario();
-
   if (isAdmin) carregarPainelAdmin();
   if (tipoUsuario === "serviceiro") carregarPainelServiceiro();
 }
@@ -2141,12 +2138,21 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
   } catch(e) { console.warn("Erro ao carregar configs:", e); }
 
   // 2. Carrega horários e disponibilidade
-  await carregarHorariosCards();
-  verificarDisponibilidade(dataFiltroEl.value);
+  try {
+    await carregarHorariosCards();
+    verificarDisponibilidade(dataFiltroEl.value);
+  } catch(e) { console.warn("Erro horários:", e); }
 
-  // 3. Carrega dados públicos
-  renderizarContatos();
-  renderizarPagamentos();
+  // 3. Carrega calendário
+  try { carregarCalendario(); } catch(e) { console.warn("Erro calendário:", e); }
 
-  // 4. onAuthStateChange já restaura sessão automaticamente via evento INITIAL_SESSION
+  // 4. Carrega dados públicos
+  try { renderizarContatos(); } catch(e) {}
+  try { renderizarPagamentos(); } catch(e) {}
+
+  // 5. Restaura sessão Supabase Auth
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) await aplicarSessao(session);
+  } catch(e) { console.warn("Erro sessão:", e); }
 })();
