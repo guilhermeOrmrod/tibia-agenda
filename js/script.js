@@ -8,8 +8,8 @@ const SUPA_URL = "https://lkhnklrjaalxutbnlxsy.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxraG5rbHJqYWFseHV0Ym5seHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjE3NjUsImV4cCI6MjA5NTY5Nzc2NX0.BCifSPGyoI5pN1OTRgpWQQW4rRMnvTO-WOSi1xuIcPk";
 
 // Cliente Supabase Auth
-const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-if (!supabase) throw new Error('Supabase não carregou!');
+const _supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+if (!_supa) throw new Error('Supabase não carregou!');
 
 // Sessão atual
 let sessaoAuth = null;   // objeto session do Supabase
@@ -385,7 +385,7 @@ async function aplicarSessao(session) {
   atualizarHeaders(session.access_token);
 
   // Busca perfil do usuário
-  const { data: perfil } = await supabase
+  const { data: perfil } = await _supa
     .from("perfis")
     .select("*")
     .eq("id", session.user.id)
@@ -399,7 +399,7 @@ async function aplicarSessao(session) {
       perfil ? "⏳ Conta aguardando aprovação do admin." : "⚠️ Perfil não encontrado.",
       "erro"
     );
-    await supabase.auth.signOut();
+    await _supa.auth.signOut();
     atualizarUI();
     return;
   }
@@ -486,7 +486,7 @@ document.getElementById("btnLogin").addEventListener("click", async () => {
 
   if (!email || !senha) { erroEl.textContent = "Preencha email e senha."; return; }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  const { data, error } = await _supa.auth.signInWithPassword({ email, password: senha });
   if (error) {
     erroEl.textContent = "Email ou senha incorretos.";
     return;
@@ -517,7 +517,7 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
     if (convites.length === 0) { erroEl.textContent = "Código de convite inválido ou já usado."; return; }
   }
 
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await _supa.auth.signUp({
     email, password: senha,
     options: { data: { nick, role: tipo } }
   });
@@ -543,12 +543,12 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
 
 // ── Logout ──
 document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await supabase.auth.signOut();
+  await _supa.auth.signOut();
   mostrarMensagem("Saiu da conta.", "sucesso");
 });
 
 // ── Escuta mudanças de sessão ──
-supabase.auth.onAuthStateChange(async (event, session) => {
+_supa.auth.onAuthStateChange(async (event, session) => {
   await aplicarSessao(session);
 });
 
@@ -1339,7 +1339,7 @@ async function carregarUsuarios(filtroRole = "pendente") {
   container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
 
   try {
-    const { data: perfis, error } = await supabase
+    const { data: perfis, error } = await _supa
       .from("perfis")
       .select("*")
       .eq("role", filtroRole)
@@ -2152,7 +2152,7 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
 
   // 5. Restaura sessão Supabase Auth
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await _supa.auth.getSession();
     if (session) await aplicarSessao(session);
   } catch(e) { console.warn("Erro sessão:", e); }
 })();
