@@ -229,10 +229,10 @@ async function carregarCalendario() {
 carregarCalendario();
 
 // ── Autenticação ──────────────────────────
-const SENHA_ADMIN   = "adminFatal1289";
-const SENHA_CLIENTE = "cliente123";
-let SENHA_ADMIN_DIN   = SENHA_ADMIN;
-let SENHA_CLIENTE_DIN = SENHA_CLIENTE;
+// Senhas carregadas do Supabase — não ficam hardcoded
+let SENHA_ADMIN_DIN   = null;
+let SENHA_CLIENTE_DIN = null;
+let senhasCarregadas  = false;
 let tipoUsuario = null;
 
 // Aplica o estado visual de login na tela
@@ -263,16 +263,18 @@ if (sessaoSalva) {
 document.getElementById("loginBtn").addEventListener("click", () => {
   const senha = document.getElementById("senha").value;
 
-  // Carrega senhas do Supabase se disponível
-  const senhaAdminAtual   = SENHA_ADMIN_DIN;
-  const senhaClienteAtual = SENHA_CLIENTE_DIN;
+  // Bloqueia login até as senhas carregarem do Supabase
+  if (!senhasCarregadas) {
+    mostrarMensagem("⏳ Aguarde, carregando configurações...", "sucesso");
+    return;
+  }
 
-  if (senha === senhaAdminAtual) {
+  if (senha === SENHA_ADMIN_DIN) {
     sessionStorage.setItem("fatal_session", "admin");
     aplicarSessao("admin");
     mostrarMensagem("✅ Logado como ADMIN", "sucesso");
 
-  } else if (senha === senhaClienteAtual) {
+  } else if (senha === SENHA_CLIENTE_DIN) {
     sessionStorage.setItem("fatal_session", "cliente");
     aplicarSessao("cliente");
     mostrarMensagem("✅ Logado como CLIENTE", "sucesso");
@@ -789,26 +791,46 @@ document.getElementById("pgArquivo").addEventListener("change", (e) => {
 });
 
 // ── Inicializa ────────────────────────────
-// Carrega configurações do Supabase ao abrir a página
+// Carrega configurações do Supabase — login bloqueado até concluir
 (async () => {
+  // Mostra estado de carregamento no botão de login
+  const loginBtn = document.getElementById("loginBtn");
+  loginBtn.textContent = "⏳";
+  loginBtn.disabled    = true;
+
   try {
     const rows = await supaGet("configuracoes", "");
     rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
-    // Aplica senhas dinâmicas
+
+    // Aplica senhas do Supabase
     if (cfgAtual.senhas?.admin)   SENHA_ADMIN_DIN   = cfgAtual.senhas.admin;
     if (cfgAtual.senhas?.cliente) SENHA_CLIENTE_DIN = cfgAtual.senhas.cliente;
+
     // Aplica hunts no select
     atualizarSelectHunts();
     // Aplica serviceiros
     atualizarServiceiros();
-    // Aplica preços na aba de preços
+    // Aplica preços
     if (cfgAtual.precos?.normal) {
       document.getElementById("precoNormal").textContent =
         `R$ ${parseFloat(cfgAtual.precos.normal).toFixed(2).replace(".",",")} / hora em dias normais`;
       document.getElementById("precoEvento").textContent =
         `R$ ${parseFloat(cfgAtual.precos.evento).toFixed(2).replace(".",",")} / hora em dias de evento`;
     }
-  } catch(e) { console.warn("Configurações não carregadas:", e); }
+
+    senhasCarregadas = true;
+
+  } catch(e) {
+    console.warn("Erro ao carregar configurações:", e);
+    // Fallback de emergência — só funciona se o Supabase falhar
+    SENHA_ADMIN_DIN   = "fatal-fallback-admin";
+    SENHA_CLIENTE_DIN = "fatal-fallback-cliente";
+    senhasCarregadas  = true;
+  } finally {
+    // Libera o botão de login
+    loginBtn.textContent = "Entrar";
+    loginBtn.disabled    = false;
+  }
 })();
 
 renderizarContatos();
