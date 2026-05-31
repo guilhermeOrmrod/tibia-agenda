@@ -391,6 +391,7 @@ document.getElementById("logoutBtn").addEventListener("click", () => {
   document.getElementById("btnNavAdmin").style.display = "none";
   renderizarContatos();
   renderizarPagamentos();
+  carregarHistorico();
   mostrarMensagem("Saiu da conta.", "sucesso");
 });
 
@@ -1088,10 +1089,21 @@ function mostrarModalAvaliacao(ag) {
 // HISTÓRICO DE SERVIÇOS
 // =========================================
 async function carregarHistorico() {
-  const statusFiltro     = document.getElementById("filtroStatusHistorico").value;
-  const servicFiltro     = document.getElementById("filtroServiceiroHistorico").value;
-  const container        = document.getElementById("listaHistorico");
-  container.innerHTML    = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
+  const container = document.getElementById("listaHistorico");
+
+  // Bloqueia acesso para não logados
+  if (!tipoUsuario) {
+    container.innerHTML = `
+      <div class="contatos-bloqueado">
+        <span class="bloqueado-icon">🔒</span>
+        <p>Faça login para consultar o histórico de serviços.</p>
+      </div>`;
+    return;
+  }
+
+  const statusFiltro  = document.getElementById("filtroStatusHistorico").value;
+  const servicFiltro  = document.getElementById("filtroServiceiroHistorico").value;
+  container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
 
   try {
     const chamadoFiltro = document.getElementById("filtroChamado")?.value.trim();
