@@ -39,6 +39,27 @@ async function supaDelete(tabela, id) {
   });
 }
 
+// ── Ações privilegiadas via Edge Function (service_role) ──
+async function adminAction(acao, tabela, id = null, dados = null) {
+  // Usa a senha admin atual como token de autenticação
+  const token = SENHA_ADMIN_DIN;
+  const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+    method: "POST",
+    headers: {
+      "Content-Type":   "application/json",
+      "apikey":         SUPA_KEY,
+      "Authorization":  "Bearer " + SUPA_KEY,
+      "x-admin-token":  token
+    },
+    body: JSON.stringify({ acao, tabela, id, dados })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Erro na ação admin");
+  }
+  return res.json();
+}
+
 async function supaUpload(bucket, path, file) {
   const res = await fetch(`${SUPA_URL}/storage/v1/object/${bucket}/${path}`, {
     method: "POST",
@@ -268,7 +289,7 @@ const calendar   = new FullCalendar.Calendar(calendarEl, {
 
     if (tipoUsuario === "admin") {
       if (confirm(detalhes + "\n\nDeseja excluir este agendamento?")) {
-        await supaDelete("agendamentos", ep.id);
+        await adminAction("delete", "agendamentos", ep.id);
         info.event.remove();
         verificarDisponibilidade(dataFiltroEl.value);
         mostrarMensagem("🗑️ Agendamento excluído!", "sucesso");
@@ -587,7 +608,7 @@ document.getElementById("btnSalvarContato").addEventListener("click", async () =
   const whats   = document.getElementById("editWhats").value.trim();
   const pix     = document.getElementById("editPix").value.trim();
   const discord = document.getElementById("editDiscord").value.trim();
-  await supaPatch("contatos", id, { whats, pix, discord });
+  await adminAction("update", "contatos", id, { whats, pix, discord });
   document.getElementById("modalContato").style.display = "none";
   renderizarContatos();
   mostrarMensagem("✅ Contato atualizado!", "sucesso");
@@ -657,7 +678,7 @@ async function renderizarPagamentos() {
     document.querySelectorAll("[data-excluir]").forEach(btn =>
       btn.addEventListener("click", async () => {
         if (confirm("Excluir este pagamento?")) {
-          await supaDelete("pagamentos", btn.dataset.excluir);
+          await adminAction("delete", "pagamentos", btn.dataset.excluir);
           renderizarPagamentos();
           mostrarMensagem("🗑️ Pagamento excluído!", "sucesso");
         }
@@ -669,7 +690,7 @@ async function renderizarPagamentos() {
 }
 
 async function alterarStatusPagamento(id, novoStatus) {
-  await supaPatch("pagamentos", id, { status: novoStatus });
+  await adminAction("update", "pagamentos", id, { status: novoStatus });
   renderizarPagamentos();
   mostrarMensagem(novoStatus === "aprovado" ? "✅ Pagamento aprovado!" : "❌ Pagamento recusado!",
     novoStatus === "aprovado" ? "sucesso" : "erro");
@@ -902,7 +923,7 @@ function gerarAcoesAdmin(ag) {
 }
 
 async function aprovarAgendamento(id, lista) {
-  await supaPatch("agendamentos", id, { status: "aprovado" });
+  await adminAction("update", "agendamentos", id, { status: "aprovado" });
   const ag = lista.find(a => a.id === id);
   if (ag) {
     calendar.addEvent({
@@ -930,7 +951,7 @@ async function recusarAgendamento(id, statusAtual) {
   const icone      = eCancelamento ? "🚫" : "❌";
   const obs        = `${icone} ${eCancelamento ? "Cancelado" : "Recusado"}: ${motivo.trim()}`;
 
-  await supaPatch("agendamentos", id, { status: novoStatus, obs_conclusao: obs });
+  await adminAction("update", "agendamentos", id, { status: novoStatus, obs_conclusao: obs });
 
   const ev = calendar.getEventById(id);
   if (ev) ev.remove();
@@ -941,7 +962,7 @@ async function recusarAgendamento(id, statusAtual) {
 }
 
 async function atualizarStatusAg(id, novoStatus, msg) {
-  await supaPatch("agendamentos", id, { status: novoStatus });
+  await adminAction("update", "agendamentos", id, { status: novoStatus });
   // Atualiza cor no calendário
   const ev = calendar.getEventById(id);
   if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
@@ -955,7 +976,7 @@ async function encerrarAgendamento(ag) {
     mostrarMensagem("⚠️ Informe o motivo do encerramento.", "erro");
     return;
   }
-  await supaPatch("agendamentos", ag.id, {
+  await adminAction("update", "agendamentos", ag.id, {
     status: "encerrado",
     obs_conclusao: `🛑 Encerrado antecipadamente: ${motivo.trim()}`
   });
@@ -985,7 +1006,7 @@ async function concluirAgendamento(ag) {
   const obs = prompt("Observação da conclusão (opcional):");
   const obsTexto = obs && obs.trim() ? `✅ Concluído: ${obs.trim()}` : "✅ Concluído com sucesso.";
 
-  await supaPatch("agendamentos", ag.id, { status: "concluido", obs_conclusao: obsTexto });
+  await adminAction("update", "agendamentos", ag.id, { status: "concluido", obs_conclusao: obsTexto });
   const ev = calendar.getEventById(ag.id);
   if (ev) ev.setProp("color", "#4caf6e");
   mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
@@ -1276,10 +1297,21 @@ function renderizarTagsServiceiros() {
 }
 
 async function salvarConfig(chave, valor) {
-  await fetch(`${SUPA_URL}/rest/v1/configuracoes?chave=eq.${chave}`, {
-    method: "PATCH",
-    headers: { ...HEADERS, "Prefer": "return=minimal" },
-    body: JSON.stringify({ valor, atualizado_em: new Date().toISOString() })
+  // configuracoes usa chave como PK — faz PATCH direto via fetch com service_role
+  const token = SENHA_ADMIN_DIN;
+  await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "apikey":        SUPA_KEY,
+      "Authorization": "Bearer " + SUPA_KEY,
+      "x-admin-token": token
+    },
+    body: JSON.stringify({
+      acao:   "update_config",
+      chave,
+      dados:  { valor, atualizado_em: new Date().toISOString() }
+    })
   });
 }
 
@@ -1501,7 +1533,7 @@ function renderizarHorariosAdmin(serviceiro) {
 
   container.querySelectorAll("[data-del-id]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      await supaDelete("horarios_serviceiros", btn.dataset.delId);
+      await adminAction("delete", "horarios_serviceiros", btn.dataset.delId);
       horariosCache = horariosCache.filter(h => h.id !== btn.dataset.delId);
       renderizarHorariosAdmin(serviceiro);
       renderizarHorariosCards();
@@ -1542,9 +1574,10 @@ document.getElementById("btnAdicionarHorario")?.addEventListener("click", async 
     mostrarMensagem(`⚠️ Este horário sobrepõe um já cadastrado para ${serviceiro} na ${dia}.`, "erro"); return;
   }
 
-  const [novo] = await supaPost("horarios_serviceiros", {
+  const novos = await adminAction("insert", "horarios_serviceiros", null, {
     serviceiro, dia_semana: dia, hora_inicio: inicio, hora_fim: fim, ativo: true
   });
+  const novo = Array.isArray(novos) ? novos[0] : novos;
   horariosCache.push(novo);
   renderizarHorariosAdmin(serviceiro);
   renderizarHorariosCards();
@@ -1674,7 +1707,7 @@ async function carregarSugestoes() {
     // Marcar como lida
     container.querySelectorAll(".btn-marcar-lida").forEach(btn => {
       btn.addEventListener("click", async () => {
-        await supaPatch("sugestoes", btn.dataset.sugId, { lida: true });
+        await adminAction("update", "sugestoes", btn.dataset.sugId, { lida: true });
         carregarSugestoes();
       });
     });
@@ -1683,7 +1716,7 @@ async function carregarSugestoes() {
     container.querySelectorAll("[data-del-sug]").forEach(btn => {
       btn.addEventListener("click", async () => {
         if (confirm("Excluir esta sugestão?")) {
-          await supaDelete("sugestoes", btn.dataset.delSug);
+          await adminAction("delete", "sugestoes", btn.dataset.delSug);
           carregarSugestoes();
           mostrarMensagem("🗑️ Sugestão excluída.", "sucesso");
         }
