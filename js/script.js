@@ -244,20 +244,16 @@ function aplicarSessao(tipo) {
   document.getElementById("userArea").style.display           = "flex";
   document.getElementById("usuarioLogado").textContent        = isAdmin ? "⚔️ ADMIN" : "🗡️ CLIENTE";
   document.getElementById("btnEditarContatos").style.display  = isAdmin ? "inline-block" : "none";
-  if (isAdmin) {
-    renderizarContatos();
-    renderizarPagamentos();
-  }
+  document.getElementById("btnNavAdmin").style.display        = isAdmin ? "inline-block" : "none";
+  renderizarContatos();
+  renderizarPagamentos();
+  if (isAdmin) carregarPainelAdmin();
 }
 
 // Restaura sessão ao recarregar a página
 const sessaoSalva = sessionStorage.getItem("fatal_session");
 if (sessaoSalva) {
   aplicarSessao(sessaoSalva);
-  if (sessaoSalva === "admin") {
-    document.getElementById("btnNavAdmin").style.display = "inline-block";
-    carregarPainelAdmin();
-  }
 }
 
 document.getElementById("loginBtn").addEventListener("click", () => {
@@ -271,8 +267,8 @@ document.getElementById("loginBtn").addEventListener("click", () => {
 
   if (senha === SENHA_ADMIN_DIN) {
     sessionStorage.setItem("fatal_session", "admin");
-    aplicarSessao("admin");
     mostrarMensagem("✅ Logado como ADMIN", "sucesso");
+    setTimeout(() => location.reload(), 800);
 
   } else if (senha === SENHA_CLIENTE_DIN) {
     sessionStorage.setItem("fatal_session", "cliente");
