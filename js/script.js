@@ -267,7 +267,7 @@ window.addEventListener("resize", () => calendar.updateSize());
 async function carregarCalendario() {
   try {
     // Carrega agendamentos aprovados e em andamento no calendário
-    const STATUS_CORES = { aprovado: "#9333ea", em_andamento: "#378add", concluido: "#4caf6e", encerrado: "#e05a3a" };
+    const STATUS_CORES = { aprovado: "#9333ea", em_andamento: "#378add", concluido: "#4caf6e", encerrado: "#e05a3a", cancelado: "#888780" };
     const eventos = await supaGet("agendamentos", "status=in.(aprovado,em_andamento,concluido,encerrado)&order=inicio.asc");
     eventos.forEach(ev => {
       calendar.addEvent({
@@ -457,16 +457,21 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
     mostrarMensagem(`⚠️ ${serviceiro} já tem um serviço ${status} neste horário.`, "erro"); return;
   }
 
-  // Salva no Supabase com status pendente
+  // Gera número de chamado sequencial
+  const ultimoChamado = await supaGet("agendamentos", "numero_chamado=not.is.null&order=numero_chamado.desc&limit=1");
+  const numeroChamado = ultimoChamado.length > 0 ? (ultimoChamado[0].numero_chamado + 1) : 1;
+
+  // Salva no Supabase com status pendente e número de chamado
   await supaPost("agendamentos", {
     nome_cliente, serviceiro, vocacao, tipo, hunt,
     inicio: inicio.toISOString(), fim: fim.toISOString(),
-    status: "pendente"
+    status: "pendente",
+    numero_chamado: numeroChamado
   });
 
   // Não adiciona ao calendário — só aparece após aprovação
   verificarDisponibilidade(dataFiltroEl.value);
-  mostrarMensagem("📋 Agendamento enviado! Aguarde a aprovação do admin.", "sucesso");
+  mostrarMensagem(`📋 Agendamento enviado! Seu chamado é <strong>#${numeroChamado}</strong> — anote esse número para acompanhar no Histórico.`, "sucesso");
   e.target.reset();
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   document.getElementById("huntCustom").style.display = "none";
@@ -689,7 +694,8 @@ const STATUS_ICONS = {
   em_andamento: "⚔️",
   concluido:    "🏆",
   recusado:     "❌",
-  encerrado:    "🛑"
+  encerrado:    "🛑",
+  cancelado:    "🚫"
 };
 
 const STATUS_LABELS = {
@@ -698,7 +704,8 @@ const STATUS_LABELS = {
   em_andamento: "Em andamento",
   concluido:    "Concluído",
   recusado:     "Recusado",
-  encerrado:    "Encerrado"
+  encerrado:    "Encerrado",
+  cancelado:    "Cancelado"
 };
 
 let abaAgAtual = "pendente";
@@ -735,10 +742,11 @@ async function carregarAgendamentosPendentes(status = "pendente") {
 
     container.innerHTML = ags.map(ag => {
       const acoes = gerarAcoesAdmin(ag);
+      const numChamado = ag.numero_chamado ? `<span class="ag-chamado">#${ag.numero_chamado}</span>` : '';
       return `
         <div class="agendamento-card ${status}">
           <div class="ag-header">
-            <span class="ag-nome">${ag.nome_cliente}</span>
+            <span class="ag-nome">${numChamado} ${ag.nome_cliente}</span>
             <span class="ag-status-badge">${STATUS_ICONS[status]} ${STATUS_LABELS[status]}</span>
           </div>
           <div class="ag-info">
@@ -756,7 +764,8 @@ async function carregarAgendamentosPendentes(status = "pendente") {
       btn.addEventListener("click", () => aprovarAgendamento(btn.dataset.agId, ags));
     });
     container.querySelectorAll("[data-ag-recusar]").forEach(btn => {
-      btn.addEventListener("click", () => recusarAgendamento(btn.dataset.agRecusar));
+      const ag = ags.find(a => a.id === btn.dataset.agRecusar);
+      btn.addEventListener("click", () => recusarAgendamento(btn.dataset.agRecusar, ag?.status || "pendente"));
     });
     container.querySelectorAll("[data-ag-andamento]").forEach(btn => {
       const ag = ags.find(a => a.id === btn.dataset.agAndamento);
@@ -830,26 +839,44 @@ async function aprovarAgendamento(id, lista) {
   const ag = lista.find(a => a.id === id);
   if (ag) {
     calendar.addEvent({
-      id, title: ag.serviceiro + " → " + ag.nome_cliente + " (" + ag.hunt + ")",
+      id, title: `#${ag.numero_chamado} ${ag.serviceiro} → ${ag.nome_cliente} (${ag.hunt})`,
       start: ag.inicio, end: ag.fim, color: "#9333ea",
-      extendedProps: { id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado" }
+      extendedProps: { id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado", numero_chamado: ag.numero_chamado }
     });
   }
-  mostrarMensagem("✅ Agendamento aprovado!", "sucesso");
+  mostrarMensagem(`✅ Agendamento aprovado! Chamado #${ag?.numero_chamado} confirmado.`, "sucesso");
   carregarAgendamentosPendentes(abaAgAtual);
   verificarDisponibilidade(dataFiltroEl.value);
 }
 
-async function recusarAgendamento(id) {
-  if (confirm("Cancelar/recusar este agendamento?")) {
-    await supaPatch("agendamentos", id, { status: "recusado" });
-    // Remove do calendário se estiver lá
-    const evCalendario = calendar.getEventById(id);
-    if (evCalendario) evCalendario.remove();
-    mostrarMensagem("❌ Agendamento recusado.", "erro");
-    carregarAgendamentosPendentes(abaAgAtual);
-    verificarDisponibilidade(dataFiltroEl.value);
+async function recusarAgendamento(id, statusAtual) {
+  // Pendentes são recusados, aprovados/em andamento são cancelados
+  const eCancelamento = statusAtual === "aprovado" || statusAtual === "em_andamento";
+
+  let motivo = "";
+  if (eCancelamento) {
+    motivo = prompt("Motivo do cancelamento (obrigatório):");
+    if (!motivo || motivo.trim() === "") {
+      mostrarMensagem("⚠️ Informe o motivo do cancelamento.", "erro");
+      return;
+    }
+  } else {
+    if (!confirm("Recusar este agendamento?")) return;
   }
+
+  const novoStatus = eCancelamento ? "cancelado" : "recusado";
+  const obsCanc    = eCancelamento ? "🚫 Cancelado: " + motivo.trim() : "";
+  await supaPatch("agendamentos", id, { status: novoStatus, obs_conclusao: obsCanc });
+
+  const evCalendario = calendar.getEventById(id);
+  if (evCalendario) evCalendario.remove();
+
+  mostrarMensagem(
+    eCancelamento ? "🚫 Agendamento cancelado." : "❌ Agendamento recusado.",
+    "erro"
+  );
+  carregarAgendamentosPendentes(abaAgAtual);
+  verificarDisponibilidade(dataFiltroEl.value);
 }
 
 async function atualizarStatusAg(id, novoStatus, msg) {
@@ -918,9 +945,11 @@ async function carregarHistorico() {
   container.innerHTML    = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
 
   try {
+    const chamadoFiltro = document.getElementById("filtroChamado")?.value.trim();
     let query = "order=inicio.desc";
-    if (statusFiltro !== "todos")    query += `&status=eq.${statusFiltro}`;
-    if (servicFiltro !== "todos")    query += `&serviceiro=eq.${encodeURIComponent(servicFiltro)}`;
+    if (statusFiltro !== "todos")  query += `&status=eq.${statusFiltro}`;
+    if (servicFiltro !== "todos")  query += `&serviceiro=eq.${encodeURIComponent(servicFiltro)}`;
+    if (chamadoFiltro)             query += `&numero_chamado=eq.${chamadoFiltro}`;
 
     const ags = await supaGet("agendamentos", query);
 
@@ -945,7 +974,10 @@ async function carregarHistorico() {
       <div class="historico-card status-${ag.status}">
         <div class="hc-status-icon">${STATUS_ICONS[ag.status] || "❓"}</div>
         <div class="hc-body">
-          <div class="hc-titulo">${ag.nome_cliente} → ${ag.serviceiro}</div>
+          <div class="hc-titulo">
+            ${ag.numero_chamado ? `<span class="hc-num-chamado">#${ag.numero_chamado}</span>` : ''}
+            ${ag.nome_cliente} → ${ag.serviceiro}
+          </div>
           <div class="hc-detalhe">
             <span>⚔️ ${ag.vocacao}</span>
             <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
@@ -963,6 +995,7 @@ async function carregarHistorico() {
 // Filtros do histórico
 document.getElementById("filtroStatusHistorico")?.addEventListener("change", carregarHistorico);
 document.getElementById("filtroServiceiroHistorico")?.addEventListener("change", carregarHistorico);
+document.getElementById("filtroChamado")?.addEventListener("input", carregarHistorico);
 
 // =========================================
 // PAINEL ADMIN

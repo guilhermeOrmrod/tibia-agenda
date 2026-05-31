@@ -458,6 +458,7 @@
           <button class="admin-ag-tab" data-ag-tab="aprovado">✅ Aprovados</button>
           <button class="admin-ag-tab" data-ag-tab="em_andamento">⚔️ Em andamento</button>
           <button class="admin-ag-tab" data-ag-tab="concluido">🏆 Concluídos</button>
+          <button class="admin-ag-tab" data-ag-tab="cancelado">🚫 Cancelados</button>
           <button class="admin-ag-tab" data-ag-tab="encerrado">🛑 Encerrados</button>
         </div>
         <div id="listaAgendamentosPendentes"></div>
@@ -479,6 +480,7 @@
     <div class="section-header">
       <h2>Histórico de Serviços</h2>
       <div class="historico-filtros">
+        <input type="number" id="filtroChamado" placeholder="🔍 Buscar chamado #" min="1" style="width:180px">
         <select id="filtroStatusHistorico">
           <option value="todos">Todos os status</option>
           <option value="pendente">Pendente</option>
@@ -486,6 +488,7 @@
           <option value="em_andamento">Em andamento</option>
           <option value="concluido">Concluído</option>
           <option value="encerrado">Encerrado</option>
+          <option value="cancelado">Cancelado</option>
           <option value="recusado">Recusado</option>
         </select>
         <select id="filtroServiceiroHistorico">

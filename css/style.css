@@ -2177,3 +2177,55 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   transition: background 0.2s;
 }
 .btn-encerrar:hover { background: rgba(224,90,58,0.25); }
+
+/* ── Status cancelado ── */
+.historico-card.status-cancelado {
+  border-left: 3px solid #888780;
+  opacity: 0.75;
+}
+.hc-badge.cancelado {
+  background: rgba(136,135,128,0.15);
+  color: #b4b2a9;
+  border: 1px solid rgba(136,135,128,0.35);
+}
+.agendamento-card.cancelado {
+  border-left: 3px solid #888780;
+  opacity: 0.8;
+}
+
+/* ── Número de chamado ── */
+.ag-chamado {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 4px;
+  padding: 1px 8px;
+  margin-right: 4px;
+}
+
+.hc-num-chamado {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 4px;
+  padding: 1px 8px;
+  margin-right: 6px;
+}
+
+#filtroChamado {
+  font-size: 13px;
+  padding: 6px 10px;
+  width: 180px !important;
+  min-width: unset;
+}
+
+/* Remove setas do input number */
+#filtroChamado::-webkit-outer-spin-button,
+#filtroChamado::-webkit-inner-spin-button { -webkit-appearance: none; }
+#filtroChamado { -moz-appearance: textfield; }
