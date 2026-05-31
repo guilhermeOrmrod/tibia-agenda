@@ -1197,12 +1197,17 @@ document.getElementById("btnAdicionarHorario")?.addEventListener("click", async 
     mostrarMensagem("⚠️ Hora fim deve ser após hora início.", "erro"); return;
   }
 
-  // Verifica duplicata
-  const existe = horariosCache.some(h =>
-    h.serviceiro === serviceiro && h.dia_semana === dia
-  );
-  if (existe) {
-    mostrarMensagem(`⚠️ ${serviceiro} já tem horário na ${dia}. Remova o anterior.`, "erro"); return;
+  // Verifica sobreposição de horários no mesmo dia
+  const horaIniMin = parseInt(inicio.replace(":",""));
+  const horaFimMin = parseInt(fim.replace(":",""));
+  const sobreposicao = horariosCache.some(h => {
+    if (h.serviceiro !== serviceiro || h.dia_semana !== dia) return false;
+    const hIni = parseInt(h.hora_inicio.slice(0,5).replace(":",""));
+    const hFim = parseInt(h.hora_fim.slice(0,5).replace(":",""));
+    return !(horaFimMin <= hIni || horaIniMin >= hFim);
+  });
+  if (sobreposicao) {
+    mostrarMensagem(`⚠️ Este horário sobrepõe um já cadastrado para ${serviceiro} na ${dia}.`, "erro"); return;
   }
 
   const [novo] = await supaPost("horarios_serviceiros", {
