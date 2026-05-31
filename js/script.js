@@ -2175,6 +2175,70 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
   sessionStorage.setItem("banner_fechado", "1");
 });
 
+// ── Detecta reset de senha via link do email ──
+(async () => {
+  const hash = window.location.hash;
+  if (hash.includes("type=recovery") || hash.includes("access_token")) {
+    // Extrai o token da URL
+    const params = new URLSearchParams(hash.replace("#", ""));
+    const accessToken = params.get("access_token");
+    if (accessToken) {
+      // Define sessão com o token do email
+      await _supa.auth.setSession({
+        access_token: accessToken,
+        refresh_token: params.get("refresh_token") || ""
+      });
+      // Mostra modal de nova senha
+      mostrarModalNovaSenha();
+      // Limpa o hash da URL
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }
+})();
+
+function mostrarModalNovaSenha() {
+  const antigo = document.getElementById("modalNovaSenha");
+  if (antigo) antigo.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modalNovaSenha";
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10003;display:flex;align-items:center;justify-content:center";
+  modal.innerHTML = `
+    <div class="auth-box" style="max-width:380px;width:94vw">
+      <div class="auth-logo">🔑 <span>Nova Senha</span></div>
+      <p style="font-size:13px;color:rgba(232,223,192,0.6);text-align:center;margin-bottom:16px">Digite sua nova senha abaixo</p>
+      <div class="auth-field">
+        <label>Nova senha</label>
+        <input type="password" id="novaSenhaInput" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+      </div>
+      <div class="auth-field" style="margin-top:10px">
+        <label>Confirmar senha</label>
+        <input type="password" id="novaSenhaConfirm" placeholder="Repita a senha" autocomplete="new-password">
+      </div>
+      <p id="novaSenhaErro" class="auth-erro" style="margin-top:8px"></p>
+      <button id="btnSalvarNovaSenha" style="margin-top:12px;background:var(--gold);color:#0a0a0f;border:none;border-radius:8px;padding:12px;font-family:Cinzel,serif;font-size:13px;font-weight:700;cursor:pointer;width:100%;letter-spacing:1px">✅ Salvar nova senha</button>
+    </div>`;
+  document.body.appendChild(modal);
+
+  document.getElementById("btnSalvarNovaSenha").addEventListener("click", async () => {
+    const nova     = document.getElementById("novaSenhaInput").value;
+    const confirma = document.getElementById("novaSenhaConfirm").value;
+    const erroEl   = document.getElementById("novaSenhaErro");
+
+    if (!nova || nova.length < 6) { erroEl.textContent = "Senha deve ter ao menos 6 caracteres."; return; }
+    if (nova !== confirma) { erroEl.textContent = "As senhas não coincidem."; return; }
+
+    const { error } = await _supa.auth.updateUser({ password: nova });
+    if (error) {
+      erroEl.textContent = "Erro ao salvar senha. Tente novamente.";
+    } else {
+      modal.remove();
+      mostrarMensagem("✅ Senha alterada com sucesso! Faça login com a nova senha.", "sucesso");
+      await _supa.auth.signOut();
+    }
+  });
+}
+
 // ── Inicializa ────────────────────────────
 (async () => {
   try {
