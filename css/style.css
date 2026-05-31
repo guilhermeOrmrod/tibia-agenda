@@ -1594,7 +1594,7 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   position: fixed;
   bottom: 28px;
   right: 28px;
-  z-index: 999;
+  z-index: 9998;
   width: 54px;
   height: 54px;
   border-radius: 50%;
@@ -1618,10 +1618,15 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 /* =========================================
    MODAL FAQ
    ========================================= */
+#modalFaq {
+  z-index: 9999 !important;
+}
+
 .faq-box {
   width: 520px;
   max-width: 95vw;
   max-height: 85vh;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
   padding: 0;
