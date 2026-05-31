@@ -554,6 +554,33 @@ document.getElementById("cadConvite")?.addEventListener("input", async (e) => {
   }
 });
 
+// ── Esqueceu a senha ──
+document.getElementById("btnEsqueceuSenha").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const erroEl = document.getElementById("loginErro");
+
+  if (!email) {
+    erroEl.textContent = "Digite seu email acima primeiro.";
+    erroEl.style.color = "#e05a3a";
+    document.getElementById("loginEmail").focus();
+    return;
+  }
+
+  const { error } = await _supa.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://www.fatal-services.com.br"
+  });
+
+  if (error) {
+    erroEl.textContent = "Erro ao enviar email. Tente novamente.";
+    erroEl.style.color = "#e05a3a";
+  } else {
+    erroEl.textContent = "✅ Email de recuperação enviado! Verifique sua caixa de entrada.";
+    erroEl.style.color = "#4caf6e";
+    document.getElementById("modalAuth").style.display = "none";
+    mostrarMensagem("📧 Email de recuperação enviado para " + email, "sucesso");
+  }
+});
+
 // ── Logout ──
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   await _supa.auth.signOut();
