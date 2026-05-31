@@ -15,6 +15,7 @@ Deno.serve(async (req) => {
     const body       = await req.json()
     const { acao, tabela, id, chave, dados } = body
 
+    // Valida token admin
     const anonClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!
@@ -32,6 +33,18 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Tabelas permitidas
+    const tabelasPermitidas = [
+      'agendamentos','pagamentos','contatos','configuracoes',
+      'sugestoes','horarios_serviceiros','convites','perfis','avaliacoes'
+    ]
+    if (tabela && !tabelasPermitidas.includes(tabela)) {
+      return new Response(
+        JSON.stringify({ error: 'Tabela não permitida' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -44,21 +57,25 @@ Deno.serve(async (req) => {
         .from(tabela).update(dados).eq('id', id).select()
       if (error) throw error
       result = data
+
     } else if (acao === 'update_config') {
       const { data, error } = await serviceClient
         .from('configuracoes').update(dados).eq('chave', chave).select()
       if (error) throw error
       result = data
+
     } else if (acao === 'delete') {
       const { error } = await serviceClient
         .from(tabela).delete().eq('id', id)
       if (error) throw error
       result = { success: true }
+
     } else if (acao === 'insert') {
       const { data, error } = await serviceClient
         .from(tabela).insert(dados).select()
       if (error) throw error
       result = data
+
     } else {
       throw new Error(`Ação desconhecida: ${acao}`)
     }

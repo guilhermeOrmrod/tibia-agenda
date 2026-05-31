@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -41,8 +42,7 @@
       </nav>
       <div id="loginBox">
         <div id="loginArea">
-          <input type="password" id="senha" placeholder="Senha">
-          <button id="loginBtn">Entrar</button>
+          <button id="btnAbrirAuth" class="btn-auth-header">Entrar / Cadastrar</button>
         </div>
         <div id="userArea">
           <span id="usuarioLogado"></span>
@@ -466,6 +466,17 @@
         <div id="listaAgendamentosPendentes"></div>
       </div>
 
+      <!-- Gestão de Usuários -->
+      <div class="admin-card" id="cardUsuarios">
+        <h3>👥 Gestão de Usuários</h3>
+        <div class="admin-ag-tabs">
+          <button class="admin-ag-tab active" data-usr-tab="pendente">⏳ Pendentes</button>
+          <button class="admin-ag-tab" data-usr-tab="serviceiro">⚔️ Serviceiros</button>
+          <button class="admin-ag-tab" data-usr-tab="cliente">👤 Clientes</button>
+        </div>
+        <div id="listaUsuarios"></div>
+      </div>
+
       <!-- Sugestões no painel admin -->
       <div class="admin-card" id="cardSugestoes">
         <h3>💬 Sugestões Recebidas <span id="badgeSugestoes"></span></h3>
@@ -576,6 +587,63 @@
           <button id="btnEnviarSugestao">📤 Enviar sugestão</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal de Autenticação -->
+  <div id="modalAuth" style="display:none">
+    <div class="auth-box">
+      <div class="auth-logo">⚔️ <span>Fatal Services</span></div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth="login">Entrar</button>
+        <button class="auth-tab" data-auth="cadastro">Criar conta</button>
+      </div>
+
+      <!-- Login -->
+      <div id="auth-login" class="auth-content active">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label>Senha</label>
+          <input type="password" id="loginSenha" placeholder="Sua senha" autocomplete="current-password">
+        </div>
+        <button id="btnLogin">⚔️ Entrar</button>
+        <p id="loginErro" class="auth-erro"></p>
+      </div>
+
+      <!-- Cadastro -->
+      <div id="auth-cadastro" class="auth-content">
+        <div class="auth-field">
+          <label>Nick no jogo</label>
+          <input type="text" id="cadNick" placeholder="Ex: Fear Popstar" autocomplete="off">
+        </div>
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="cadEmail" placeholder="seu@email.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label>Senha</label>
+          <input type="password" id="cadSenha" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="auth-field">
+          <label>Tipo de conta</label>
+          <select id="cadTipo">
+            <option value="cliente">👤 Cliente</option>
+            <option value="serviceiro">⚔️ Serviceiro</option>
+          </select>
+        </div>
+        <div class="auth-field" id="campoConvite">
+          <label>Código de convite</label>
+          <input type="text" id="cadConvite" placeholder="Código fornecido pelo admin" autocomplete="off">
+        </div>
+        <button id="btnCadastro">📝 Criar conta</button>
+        <p id="cadErro" class="auth-erro"></p>
+      </div>
+
+      <button id="btnFecharAuth" class="auth-fechar">×</button>
     </div>
   </div>
 

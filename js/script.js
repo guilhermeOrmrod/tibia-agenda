@@ -1,11 +1,18 @@
 // =========================================
 // script.js — Fatal Services · Rubinot
-// Integrado com Supabase
+// Supabase Auth + Roles
 // =========================================
 
 // ── Configuração Supabase ──────────────────
 const SUPA_URL = "https://lkhnklrjaalxutbnlxsy.supabase.co";
 const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxraG5rbHJqYWFseHV0Ym5seHN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxMjE3NjUsImV4cCI6MjA5NTY5Nzc2NX0.BCifSPGyoI5pN1OTRgpWQQW4rRMnvTO-WOSi1xuIcPk";
+
+// Cliente Supabase Auth
+const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Sessão atual
+let sessaoAuth = null;   // objeto session do Supabase
+let perfilAtual = null;  // linha da tabela perfis
 
 const HEADERS = {
   "apikey":        SUPA_KEY,
@@ -13,6 +20,11 @@ const HEADERS = {
   "Content-Type":  "application/json",
   "Prefer":        "return=representation"
 };
+
+// Atualiza Authorization quando usuário loga
+function atualizarHeaders(token) {
+  HEADERS["Authorization"] = "Bearer " + (token || SUPA_KEY);
+}
 
 async function supaGet(tabela, query = "") {
   const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}?${query}`, { headers: HEADERS });
@@ -112,6 +124,7 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
       atualizarSelectHorariosAdmin();
       carregarSugestoes();
       carregarAgendamentosPendentes("pendente");
+      carregarUsuarios("pendente");
     }
     if (aba === "historico")  carregarHistorico();
     if (aba === "dashboard")  carregarDashboard();
@@ -330,70 +343,187 @@ async function carregarCalendario() {
 
 carregarCalendario();
 
-// ── Autenticação ──────────────────────────
-// Senhas carregadas EXCLUSIVAMENTE do Supabase
-// Não existe fallback hardcoded — sem senhas no código
-let SENHA_ADMIN_DIN   = null;
-let SENHA_CLIENTE_DIN = null;
-let senhasCarregadas  = false;
-let tipoUsuario = null;
+// =========================================
+// SISTEMA DE AUTENTICAÇÃO — Supabase Auth
+// =========================================
+let tipoUsuario = null; // "admin" | "serviceiro" | "cliente" | null
+let SENHA_ADMIN_DIN = null; // mantido para compatibilidade com adminAction
 
-// Aplica o estado visual de login na tela
-function aplicarSessao(tipo) {
-  tipoUsuario = tipo;
-  const isAdmin = tipo === "admin";
-  document.getElementById("formAgendamento").style.display    = "block";
-  document.getElementById("loginArea").style.display          = "none";
-  document.getElementById("userArea").style.display           = "flex";
-  document.getElementById("usuarioLogado").textContent        = isAdmin ? "⚔️ ADMIN" : "🗡️ CLIENTE";
-  document.getElementById("btnEditarContatos").style.display  = isAdmin ? "inline-block" : "none";
-  document.getElementById("btnNavAdmin").style.display        = isAdmin ? "inline-block" : "none";
-  renderizarContatos();
-  renderizarPagamentos();
-  popularSelectServiceiroPagamento();
-  if (isAdmin) carregarPainelAdmin();
-}
-
-// Restaura sessão — guardada para depois do Supabase carregar
-const sessaoSalva = sessionStorage.getItem("fatal_session");
-
-document.getElementById("loginBtn").addEventListener("click", () => {
-  const senha = document.getElementById("senha").value;
-
-  // Bloqueia login até as senhas carregarem do Supabase
-  if (!senhasCarregadas) {
-    mostrarMensagem("⏳ Aguarde, carregando configurações...", "sucesso");
+// ── Aplica sessão na UI ──
+async function aplicarSessao(session) {
+  sessaoAuth = session;
+  if (!session) {
+    tipoUsuario = null;
+    perfilAtual = null;
+    atualizarHeaders(null);
+    atualizarUI();
     return;
   }
 
-  if (senha === SENHA_ADMIN_DIN) {
-    sessionStorage.setItem("fatal_session", "admin");
-    mostrarMensagem("✅ Logado como ADMIN", "sucesso");
-    setTimeout(() => location.reload(), 800);
+  atualizarHeaders(session.access_token);
 
-  } else if (senha === SENHA_CLIENTE_DIN) {
-    sessionStorage.setItem("fatal_session", "cliente");
-    aplicarSessao("cliente");
-    mostrarMensagem("✅ Logado como CLIENTE", "sucesso");
+  // Busca perfil do usuário
+  const { data: perfil } = await supabase
+    .from("perfis")
+    .select("*")
+    .eq("id", session.user.id)
+    .single();
 
-  } else {
-    mostrarMensagem("⚠️ Senha incorreta!", "erro");
+  perfilAtual = perfil;
+
+  if (!perfil || !perfil.aprovado) {
+    tipoUsuario = null;
+    mostrarMensagem(
+      perfil ? "⏳ Conta aguardando aprovação do admin." : "⚠️ Perfil não encontrado.",
+      "erro"
+    );
+    await supabase.auth.signOut();
+    atualizarUI();
+    return;
   }
-});
 
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  tipoUsuario = null;
-  sessionStorage.removeItem("fatal_session");
-  document.getElementById("formAgendamento").style.display   = "none";
-  document.getElementById("loginArea").style.display         = "flex";
-  document.getElementById("userArea").style.display          = "none";
-  document.getElementById("senha").value                     = "";
-  document.getElementById("btnEditarContatos").style.display = "none";
-  document.getElementById("btnNavAdmin").style.display = "none";
+  tipoUsuario = perfil.role;
+
+  // Carrega senha admin para adminAction (só para admin)
+  if (tipoUsuario === "admin") {
+    try {
+      const rows = await supaGet("configuracoes", "chave=eq.senhas");
+      if (rows[0]?.valor?.admin) SENHA_ADMIN_DIN = rows[0].valor.admin;
+    } catch(e) {}
+  }
+
+  atualizarUI();
+  mostrarMensagem(`✅ Bem-vindo, ${perfil.nick}!`, "sucesso");
+}
+
+// ── Atualiza a interface conforme o papel ──
+function atualizarUI() {
+  const logado       = tipoUsuario !== null;
+  const isAdmin      = tipoUsuario === "admin";
+  const isServiceiro = tipoUsuario === "serviceiro";
+  const nick         = perfilAtual?.nick || "";
+
+  // Header
+  document.getElementById("loginArea").style.display  = logado ? "none" : "flex";
+  document.getElementById("userArea").style.display   = logado ? "flex" : "none";
+  document.getElementById("usuarioLogado").textContent =
+    isAdmin ? `⚔️ ${nick}` : isServiceiro ? `🗡️ ${nick}` : `👤 ${nick}`;
+
+  // Botões de admin
+  document.getElementById("btnNavAdmin").style.display       = isAdmin ? "inline-block" : "none";
+  document.getElementById("btnEditarContatos").style.display = isAdmin ? "inline-block" : "none";
+
+  // Formulário de agendamento — clientes e admin podem agendar
+  document.getElementById("formAgendamento").style.display =
+    (logado && (tipoUsuario === "cliente" || isAdmin)) ? "block" : "none";
+
+  // Atualiza dados das abas
   renderizarContatos();
   renderizarPagamentos();
   carregarHistorico();
+  popularSelectServiceiroPagamento();
+
+  if (isAdmin) carregarPainelAdmin();
+}
+
+// ── Modal de Auth ──
+document.getElementById("btnAbrirAuth").addEventListener("click", () => {
+  document.getElementById("modalAuth").style.display = "flex";
+});
+document.getElementById("btnFecharAuth").addEventListener("click", () => {
+  document.getElementById("modalAuth").style.display = "none";
+});
+document.getElementById("modalAuth").addEventListener("click", e => {
+  if (e.target === document.getElementById("modalAuth"))
+    document.getElementById("modalAuth").style.display = "none";
+});
+
+// Abas Login/Cadastro
+document.querySelectorAll(".auth-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".auth-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".auth-content").forEach(c => c.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("auth-" + tab.dataset.auth).classList.add("active");
+  });
+});
+
+// Mostra/oculta campo de convite conforme tipo
+document.getElementById("cadTipo").addEventListener("change", () => {
+  document.getElementById("campoConvite").style.display =
+    document.getElementById("cadTipo").value === "cliente" ? "flex" : "none";
+});
+
+// ── Login ──
+document.getElementById("btnLogin").addEventListener("click", async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const senha  = document.getElementById("loginSenha").value;
+  const erroEl = document.getElementById("loginErro");
+  erroEl.textContent = "";
+
+  if (!email || !senha) { erroEl.textContent = "Preencha email e senha."; return; }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+  if (error) {
+    erroEl.textContent = "Email ou senha incorretos.";
+    return;
+  }
+  document.getElementById("modalAuth").style.display = "none";
+  document.getElementById("loginEmail").value = "";
+  document.getElementById("loginSenha").value = "";
+});
+
+// ── Cadastro ──
+document.getElementById("btnCadastro").addEventListener("click", async () => {
+  const nick    = document.getElementById("cadNick").value.trim();
+  const email   = document.getElementById("cadEmail").value.trim();
+  const senha   = document.getElementById("cadSenha").value;
+  const tipo    = document.getElementById("cadTipo").value;
+  const convite = document.getElementById("cadConvite").value.trim();
+  const erroEl  = document.getElementById("cadErro");
+  erroEl.textContent = "";
+
+  if (!nick || !email || !senha) { erroEl.textContent = "Preencha todos os campos."; return; }
+  if (senha.length < 6) { erroEl.textContent = "Senha deve ter ao menos 6 caracteres."; return; }
+  if (!/^[a-zA-ZÀ-ÿ ]+$/.test(nick)) { erroEl.textContent = "Nick inválido — só letras e espaços."; return; }
+
+  // Valida código de convite para clientes
+  if (tipo === "cliente") {
+    if (!convite) { erroEl.textContent = "Informe o código de convite."; return; }
+    const convites = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}&usado=eq.false`);
+    if (convites.length === 0) { erroEl.textContent = "Código de convite inválido ou já usado."; return; }
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email, password: senha,
+    options: { data: { nick, role: tipo } }
+  });
+
+  if (error) { erroEl.textContent = error.message; return; }
+
+  // Marca convite como usado (clientes)
+  if (tipo === "cliente" && convite) {
+    const conviteRow = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}`);
+    if (conviteRow[0]) await adminAction("update", "convites", conviteRow[0].id, { usado: true });
+  }
+
+  document.getElementById("modalAuth").style.display = "none";
+  if (tipo === "serviceiro") {
+    mostrarMensagem("✅ Cadastro enviado! Aguarde aprovação do admin.", "sucesso");
+  } else {
+    mostrarMensagem("✅ Conta criada! Verifique seu email para confirmar.", "sucesso");
+  }
+});
+
+// ── Logout ──
+document.getElementById("logoutBtn").addEventListener("click", async () => {
+  await supabase.auth.signOut();
   mostrarMensagem("Saiu da conta.", "sucesso");
+});
+
+// ── Escuta mudanças de sessão ──
+supabase.auth.onAuthStateChange(async (event, session) => {
+  await aplicarSessao(session);
 });
 
 // ── Formulário de agendamento ─────────────
@@ -1157,6 +1287,96 @@ async function carregarHistorico() {
 }
 
 // =========================================
+// GESTÃO DE USUÁRIOS (Admin)
+// =========================================
+const ROLE_LABELS = { admin: "⚔️ Admin", serviceiro: "🗡️ Serviceiro", cliente: "👤 Cliente", pendente: "⏳ Pendente" };
+
+document.querySelectorAll("[data-usr-tab]").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll("[data-usr-tab]").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    carregarUsuarios(tab.dataset.usrTab);
+  });
+});
+
+async function carregarUsuarios(filtroRole = "pendente") {
+  if (tipoUsuario !== "admin") return;
+  const container = document.getElementById("listaUsuarios");
+  container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
+
+  try {
+    const { data: perfis, error } = await supabase
+      .from("perfis")
+      .select("*")
+      .eq("role", filtroRole)
+      .order("criado_em", { ascending: false });
+
+    if (error) throw error;
+
+    if (!perfis || perfis.length === 0) {
+      container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">Nenhum usuário encontrado.</p>`;
+      return;
+    }
+
+    container.innerHTML = perfis.map(p => `
+      <div class="sugestao-card ${!p.aprovado ? 'nao-lida' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div class="sug-nome">${p.nick} <span style="font-size:11px;color:rgba(232,223,192,0.45)">${p.email}</span></div>
+          <span class="hc-badge ${p.role}" style="font-size:10px">${ROLE_LABELS[p.role] || p.role}</span>
+        </div>
+        <div class="sug-data">Cadastrado em ${new Date(p.criado_em).toLocaleString("pt-BR")}</div>
+        <div class="sug-acoes" style="margin-top:10px;flex-wrap:wrap;gap:6px">
+          ${!p.aprovado ? `<button class="btn-marcar-lida" data-aprovar="${p.id}">✅ Aprovar</button>` : ""}
+          ${p.role !== "admin" ? `
+            <button class="btn-andamento" data-mudar-role="${p.id}" data-role="serviceiro" style="font-size:10px">🗡️ Serviceiro</button>
+            <button class="btn-andamento" data-mudar-role="${p.id}" data-role="cliente" style="font-size:10px">👤 Cliente</button>
+          ` : ""}
+          <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-remover-usr="${p.id}">🗑️</button>
+        </div>
+      </div>
+    `).join("");
+
+    // Aprovar usuário
+    container.querySelectorAll("[data-aprovar]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await adminAction("update", "perfis", btn.dataset.aprovar, { aprovado: true });
+        mostrarMensagem("✅ Usuário aprovado!", "sucesso");
+        carregarUsuarios(filtroRole);
+      });
+    });
+
+    // Mudar role
+    container.querySelectorAll("[data-mudar-role]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const novaRole = btn.dataset.role;
+        await adminAction("update", "perfis", btn.dataset.mudarRole, { role: novaRole, aprovado: true });
+        mostrarMensagem(`✅ Role alterada para ${ROLE_LABELS[novaRole]}`, "sucesso");
+        carregarUsuarios(filtroRole);
+      });
+    });
+
+    // Remover usuário
+    container.querySelectorAll("[data-remover-usr]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (confirm("Remover este usuário? Esta ação não pode ser desfeita.")) {
+          await adminAction("delete", "perfis", btn.dataset.removerUsr);
+          mostrarMensagem("🗑️ Usuário removido.", "sucesso");
+          carregarUsuarios(filtroRole);
+        }
+      });
+    });
+
+  } catch(e) { console.error("Erro ao carregar usuários:", e); }
+}
+
+// ── Geração de códigos de convite ──
+async function gerarCodigoConvite() {
+  const codigo = Math.random().toString(36).substring(2, 10).toUpperCase();
+  await adminAction("insert", "convites", null, { codigo, usado: false });
+  return codigo;
+}
+
+// =========================================
 // DASHBOARD DE MÉTRICAS
 // =========================================
 async function carregarDashboard() {
@@ -1254,6 +1474,8 @@ async function carregarPainelAdmin() {
     carregarSugestoes();
     // Carrega agendamentos pendentes
     carregarAgendamentosPendentes('pendente');
+    // Carrega usuários pendentes
+    carregarUsuarios('pendente');
   } catch(e) { console.error("Erro ao carregar config:", e); }
 }
 
@@ -1750,69 +1972,24 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
 });
 
 // ── Inicializa ────────────────────────────
-// Carrega configurações do Supabase — login bloqueado até concluir
 (async () => {
-  // Mostra estado de carregamento no botão de login
-  const loginBtn = document.getElementById("loginBtn");
-  loginBtn.textContent = "⏳";
-  loginBtn.disabled    = true;
-
-  // Timeout de 8s para não travar se Supabase estiver lento
-  const timeoutId = setTimeout(() => {
-    if (!senhasCarregadas) {
-      loginBtn.textContent   = "Erro — recarregue";
-      loginBtn.disabled      = false;
-      loginBtn.style.background = "#e05a3a";
-      loginBtn.style.color      = "#fff";
-      loginBtn.title = "Supabase demorou demais. Clique para recarregar.";
-      loginBtn.onclick = () => location.reload();
-    }
-  }, 8000);
-
+  // Carrega configurações públicas (hunts, serviceiros, preços)
   try {
     const rows = await supaGet("configuracoes", "");
     rows.forEach(r => { cfgAtual[r.chave] = r.valor; });
-
-    // Aplica senhas do Supabase
-    if (cfgAtual.senhas?.admin)   SENHA_ADMIN_DIN   = cfgAtual.senhas.admin;
-    if (cfgAtual.senhas?.cliente) SENHA_CLIENTE_DIN = cfgAtual.senhas.cliente;
-
-    // Aplica hunts no select
     atualizarSelectHunts();
-    // Aplica serviceiros
     atualizarServiceiros();
-    // Aplica preços
     if (cfgAtual.precos?.normal) {
       document.getElementById("precoNormal").textContent =
         `R$ ${parseFloat(cfgAtual.precos.normal).toFixed(2).replace(".",",")} / hora em dias normais`;
       document.getElementById("precoEvento").textContent =
         `R$ ${parseFloat(cfgAtual.precos.evento).toFixed(2).replace(".",",")} / hora em dias de evento`;
     }
+  } catch(e) { console.warn("Erro ao carregar configs:", e); }
 
-    clearTimeout(timeoutId);
-    senhasCarregadas = true;
-    // Restaura sessão DEPOIS das configs carregarem (painel admin terá os dados)
-    if (sessaoSalva) aplicarSessao(sessaoSalva);
-
-  } catch(e) {
-    console.warn("Erro ao carregar configurações:", e);
-    // Sem fallback hardcoded — mostra erro para o usuário
-    loginBtn.textContent = "Erro — recarregue";
-    loginBtn.disabled    = false;
-    loginBtn.style.background = "#e05a3a";
-    loginBtn.style.color = "#fff";
-    loginBtn.title = "Erro ao carregar configurações. Recarregue a página.";
-    // Tenta novamente em 10s
-    setTimeout(() => location.reload(), 10000);
-    return;
-  } finally {
-    if (senhasCarregadas) {
-      loginBtn.textContent = "Entrar";
-      loginBtn.disabled    = false;
-      loginBtn.style.background = "";
-      loginBtn.style.color = "";
-    }
-  }
+  // Restaura sessão do Supabase Auth (se já estava logado)
+  const { data: { session } } = await supabase.auth.getSession();
+  await aplicarSessao(session);
 })();
 
 renderizarContatos();
