@@ -347,6 +347,51 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   if (fim <= inicio) { mostrarMensagem("⚠️ Horário de fim deve ser após o início.", "erro"); return; }
   if (inicio < new Date()) { mostrarMensagem("⚠️ Não é possível agendar no passado.", "erro"); return; }
 
+  // Verifica se o serviceiro tem horários cadastrados
+  const horariosServiceiro = horariosCache.filter(h => h.serviceiro === serviceiro && h.ativo);
+
+  if (horariosServiceiro.length > 0) {
+    // Descobre o dia da semana da data escolhida em português
+    const diasPT = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+    const diaSemana = diasPT[inicio.getDay()];
+
+    // Filtra horários válidos para esse dia (inclui "Todos os dias")
+    const horariosNoDia = horariosServiceiro.filter(h =>
+      h.dia_semana === diaSemana || h.dia_semana === "Todos os dias"
+    );
+
+    if (horariosNoDia.length === 0) {
+      mostrarMensagem(
+        `⚠️ ${serviceiro} não está disponível na ${diaSemana}. Veja os horários disponíveis na aba Serviceiros.`,
+        "erro"
+      );
+      return;
+    }
+
+    // Verifica se o horário solicitado está dentro de algum horário disponível
+    const horaInicioMin = inicio.getHours() * 60 + inicio.getMinutes();
+    const horaFimMin    = fim.getHours() * 60 + fim.getMinutes();
+
+    const dentroDoHorario = horariosNoDia.some(h => {
+      const [hIni, mIni] = h.hora_inicio.split(":").map(Number);
+      const [hFim, mFim] = h.hora_fim.split(":").map(Number);
+      const dispIni = hIni * 60 + mIni;
+      const dispFim = hFim * 60 + mFim;
+      return horaInicioMin >= dispIni && horaFimMin <= dispFim;
+    });
+
+    if (!dentroDoHorario) {
+      const horariosTexto = horariosNoDia
+        .map(h => `${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}`)
+        .join(", ");
+      mostrarMensagem(
+        `⚠️ Horário fora do disponível para ${serviceiro} na ${diaSemana}. Disponível: ${horariosTexto}`,
+        "erro"
+      );
+      return;
+    }
+  }
+
   // Verifica conflito no Supabase
   const existentes = await supaGet("agendamentos",
     `serviceiro=eq.${encodeURIComponent(serviceiro)}&inicio=lte.${fim.toISOString()}&fim=gte.${inicio.toISOString()}`
@@ -787,7 +832,7 @@ document.getElementById("cfgVocacaoSel").addEventListener("change", renderizarTa
 // =========================================
 let horariosCache = [];
 
-const DIAS_ORDEM = ["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+const DIAS_ORDEM = ["Todos os dias","Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
 
 async function carregarHorariosCards() {
   try {
