@@ -15,7 +15,6 @@ Deno.serve(async (req) => {
     const body       = await req.json()
     const { acao, tabela, id, chave, dados } = body
 
-    // Valida token admin
     const anonClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!
@@ -33,7 +32,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Tabelas permitidas
     const tabelasPermitidas = [
       'agendamentos','pagamentos','contatos','configuracoes',
       'sugestoes','horarios_serviceiros','convites','perfis','avaliacoes'
@@ -61,6 +59,20 @@ Deno.serve(async (req) => {
     } else if (acao === 'update_config') {
       const { data, error } = await serviceClient
         .from('configuracoes').update(dados).eq('chave', chave).select()
+      if (error) throw error
+      result = data
+
+    } else if (acao === 'update_perm') {
+      // Atualiza permissões por role
+      const { data, error } = await serviceClient
+        .from('permissoes')
+        .upsert({
+          role: dados.role,
+          abas: dados.abas,
+          acoes: dados.acoes,
+          atualizado_em: new Date().toISOString()
+        }, { onConflict: 'role' })
+        .select()
       if (error) throw error
       result = data
 

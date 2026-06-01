@@ -32,12 +32,12 @@
       </div>
       <nav>
         <button class="nav-btn active" data-tab="serviceiros">Serviceiros</button>
-        <button class="nav-btn" data-tab="agenda">Agenda</button>
-        <button class="nav-btn" data-tab="precos">Preços</button>
-        <button class="nav-btn" data-tab="contatos">Contatos</button>
-        <button class="nav-btn" data-tab="pagamentos">Pagamentos</button>
-        <button class="nav-btn" data-tab="dashboard">📊 Stats</button>
-        <button class="nav-btn" data-tab="historico">Histórico</button>
+        <button class="nav-btn" data-tab="agenda"      id="btnNavAgenda">Agenda</button>
+        <button class="nav-btn" data-tab="precos"      id="btnNavPrecos">Preços</button>
+        <button class="nav-btn" data-tab="contatos"    id="btnNavContatos">Contatos</button>
+        <button class="nav-btn" data-tab="pagamentos"  id="btnNavPagamentos">Pagamentos</button>
+        <button class="nav-btn" data-tab="dashboard"   id="btnNavStats">📊 Stats</button>
+        <button class="nav-btn" data-tab="historico"   id="btnNavHistorico">Histórico</button>
         <button class="nav-btn nav-btn-admin" data-tab="admin" id="btnNavAdmin" style="display:none">⚙️ Admin</button>
       </nav>
       <div id="loginBox">
@@ -450,6 +450,17 @@
           <button class="admin-ag-tab" data-ag-tab="encerrado">🛑 Encerrados</button>
         </div>
         <div id="listaAgendamentosPendentes"></div>
+      </div>
+
+      <!-- Permissões por Role -->
+      <div class="admin-card">
+        <h3>🔐 Permissões por Role</h3>
+        <div class="admin-ag-tabs" style="margin-bottom:16px">
+          <button class="perm-tab active" data-perm-role="cliente">👤 Cliente</button>
+          <button class="perm-tab" data-perm-role="serviceiro">🗡️ Serviceiro</button>
+        </div>
+        <div id="painelPermissoes"></div>
+        <button class="btn-admin-salvar" id="btnSalvarPermissoes" style="margin-top:14px">💾 Salvar permissões</button>
       </div>
 
       <!-- Gestão de Usuários -->
