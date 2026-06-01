@@ -1537,6 +1537,18 @@ async function carregarUsuarios(filtroRole = "pendente") {
             <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-remover-usr="${p.id}">🗑️</button>
           </div>` : '<span style="font-size:11px;color:rgba(232,223,192,0.3)">Sua conta</span>'}
         </div>
+        ${p.role === "serviceiro" ? `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,168,76,0.12);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;color:rgba(232,223,192,0.55);font-family:Cinzel,serif">🔗 Vincular ao serviceiro:</span>
+          <select class="vinculo-serv-select" data-usr-id="${p.id}" style="font-size:11px;padding:4px 8px;width:auto;margin:0;font-family:Cinzel,serif;background:rgba(255,255,255,0.06);color:#e8dfc0;border:1px solid rgba(201,168,76,0.3);border-radius:5px">
+            <option value="">— não vinculado —</option>
+            ${listarTodosServiceiros().map(nome =>
+              `<option value="${nome}" ${p.serviceiro_nome === nome ? "selected" : ""}>${nome}</option>`
+            ).join("")}
+          </select>
+          <button class="btn-admin-salvar" data-salvar-vinculo="${p.id}" style="font-size:11px;padding:5px 10px">Salvar vínculo</button>
+          ${p.serviceiro_nome ? `<span style="font-size:10px;color:rgba(76,175,110,0.8)">✓ ${p.serviceiro_nome}</span>` : '<span style="font-size:10px;color:#f0c040">⚠️ sem vínculo</span>'}
+        </div>` : ""}
       </div>`
     }).join("");
 
@@ -1558,6 +1570,18 @@ async function carregarUsuarios(filtroRole = "pendente") {
         if (!novaRole) return;
         await adminAction("update", "perfis", id, { role: novaRole, aprovado: true });
         mostrarMensagem(`✅ Role alterada para ${ROLE_LABELS[novaRole]}`, "sucesso");
+        carregarUsuarios(filtroRole);
+      });
+    });
+
+    // Salvar vínculo serviceiro_nome
+    container.querySelectorAll("[data-salvar-vinculo]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id  = btn.dataset.salvarVinculo;
+        const sel = container.querySelector(`select.vinculo-serv-select[data-usr-id="${id}"]`);
+        const nome = sel?.value || null;
+        await adminAction("update", "perfis", id, { serviceiro_nome: nome });
+        mostrarMensagem(nome ? `🔗 Conta vinculada a "${nome}".` : "🔗 Vínculo removido.", "sucesso");
         carregarUsuarios(filtroRole);
       });
     });
@@ -1624,13 +1648,22 @@ async function carregarPainelServiceiro() {
 
 async function carregarMeusAgendamentos(status = "pendente") {
   if (!perfilAtual) return;
-  const nick = perfilAtual.nick;
+  // Usa o nome vinculado pelo admin (serviceiro_nome). Fallback no nick para
+  // contas antigas ainda não vinculadas.
+  const nomeServ = perfilAtual.serviceiro_nome || perfilAtual.nick;
   const container = document.getElementById("listaMeusAgendamentos");
   if (!container) return;
+
+  // Aviso quando a conta ainda não foi vinculada a um serviceiro da lista
+  const aviso = document.getElementById("avisoVinculoServ");
+  if (aviso) {
+    aviso.style.display = perfilAtual.serviceiro_nome ? "none" : "block";
+  }
+
   container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
 
   const ags = await supaGet("agendamentos",
-    `serviceiro=eq.${encodeURIComponent(nick)}&status=eq.${status}&order=inicio.asc`
+    `serviceiro=eq.${encodeURIComponent(nomeServ)}&status=eq.${status}&order=inicio.asc`
   );
 
   if (ags.length === 0) {
@@ -1980,6 +2013,15 @@ function renderizarTagsHunts() {
     });
     container.appendChild(tag);
   });
+}
+
+function listarTodosServiceiros() {
+  const src = cfgAtual.serviceiros || SERVICEIROS || {};
+  const todos = [];
+  Object.values(src).forEach(lista => {
+    (lista || []).forEach(nome => { if (!todos.includes(nome)) todos.push(nome); });
+  });
+  return todos.sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 function renderizarTagsServiceiros() {
