@@ -61,7 +61,7 @@ async function supaDelete(tabela, id) {
 }
 
 // ── Ações privilegiadas via Edge Function (service_role) ──
-async function adminAction(acao, tabela, id = null, dados = null) {
+async function adminAction(acao, tabela, id = null, dados = null, extra = {}) {
   // Sempre usa a senha admin como token (só admin chama isso)
   if (!SENHA_ADMIN_DIN) throw new Error("Ação requer permissão de admin.");
   const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
@@ -72,7 +72,7 @@ async function adminAction(acao, tabela, id = null, dados = null) {
       "Authorization": "Bearer " + SUPA_KEY,
       "x-admin-token": SENHA_ADMIN_DIN
     },
-    body: JSON.stringify({ acao, tabela, id, dados })
+    body: JSON.stringify({ acao, tabela, id, dados, ...extra })
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -1481,16 +1481,21 @@ async function carregarUsuarios(filtroRole = "pendente") {
   };
 
   try {
-    // Busca via REST direto com token admin (RLS permite service_role)
-    let queryStr = "order=criado_em.desc";
-
+    // Lê perfis via Edge Function (service_role) — a RLS de `perfis` só permite
+    // SELECT do próprio perfil, então o REST direto com o JWT do admin não traz
+    // os outros usuários. A Edge Function roda com service_role e enxerga todos.
+    const filtros = [];
     if (filtroRole === "pendente") {
-      queryStr += "&aprovado=eq.false";
+      filtros.push({ coluna: "aprovado", op: "eq", valor: false });
     } else if (filtroRole !== "todos") {
-      queryStr += `&role=eq.${filtroRole}&aprovado=eq.true`;
+      filtros.push({ coluna: "role", op: "eq", valor: filtroRole });
+      filtros.push({ coluna: "aprovado", op: "eq", valor: true });
     }
 
-    const perfis = await supaGet("perfis", queryStr);
+    const perfis = await adminAction("select", "perfis", null, null, {
+      filtros,
+      ordem: { coluna: "criado_em", ascending: false }
+    });
     const error = null;
 
     if (error) throw error;

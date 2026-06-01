@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   try {
     const adminToken = req.headers.get('x-admin-token')
     const body       = await req.json()
-    const { acao, tabela, id, chave, dados } = body
+    const { acao, tabela, id, chave, dados, filtros, ordem } = body
 
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -97,6 +97,23 @@ Deno.serve(async (req) => {
         .from(tabela).delete().eq('id', id)
       if (error) throw error
       result = { success: true }
+
+    } else if (acao === 'select') {
+      let q = serviceClient.from(tabela).select('*')
+      // filtros: array de { coluna, op, valor }, op em ('eq','neq')
+      if (Array.isArray(filtros)) {
+        for (const f of filtros) {
+          if (!f || !f.coluna) continue
+          if (f.op === 'neq') q = q.neq(f.coluna, f.valor)
+          else q = q.eq(f.coluna, f.valor)
+        }
+      }
+      if (ordem && ordem.coluna) {
+        q = q.order(ordem.coluna, { ascending: ordem.ascending !== false })
+      }
+      const { data, error } = await q
+      if (error) throw error
+      result = data
 
     } else if (acao === 'insert') {
       const { data, error } = await serviceClient
