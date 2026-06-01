@@ -381,7 +381,7 @@ let tipoUsuario = null; // "admin" | "serviceiro" | "cliente" | null
 let SENHA_ADMIN_DIN = null; // mantido para compatibilidade com adminAction
 
 // ── Aplica sessão na UI ──
-async function aplicarSessao(session) {
+async function aplicarSessao(session, event = '') {
   sessaoAuth = session;
   if (!session) {
     tipoUsuario = null;
@@ -393,29 +393,63 @@ async function aplicarSessao(session) {
 
   atualizarHeaders(session.access_token);
 
-  // Busca perfil do usuário
-  const { data: perfil } = await _supa
-    .from("perfis")
-    .select("*")
-    .eq("id", session.user.id)
-    .single();
-
-  perfilAtual = perfil;
-
-  if (!perfil || !perfil.aprovado) {
-    tipoUsuario = null;
-    mostrarMensagem(
-      perfil ? "⏳ Conta aguardando aprovação do admin." : "⚠️ Perfil não encontrado.",
-      "erro"
+  // Busca perfil usando o JWT do usuário (garante que RLS permite)
+  try {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/perfis?id=eq.${session.user.id}&select=*`,
+      {
+        headers: {
+          "apikey": SUPA_KEY,
+          "Authorization": "Bearer " + session.access_token,
+          "Content-Type": "application/json"
+        }
+      }
     );
-    await _supa.auth.signOut();
+    const perfis = await res.json();
+    perfilAtual = Array.isArray(perfis) && perfis.length > 0 ? perfis[0] : null;
+  } catch(e) {
+    console.warn("Erro ao buscar perfil:", e);
+    perfilAtual = null;
+  }
+
+  if (!perfilAtual) {
+    // Perfil não encontrado — pode ser delay do trigger, aguarda 1s e tenta de novo
+    await new Promise(r => setTimeout(r, 1000));
+    try {
+      const res = await fetch(
+        `${SUPA_URL}/rest/v1/perfis?id=eq.${session.user.id}&select=*`,
+        {
+          headers: {
+            "apikey": SUPA_KEY,
+            "Authorization": "Bearer " + session.access_token,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+      const perfis = await res.json();
+      perfilAtual = Array.isArray(perfis) && perfis.length > 0 ? perfis[0] : null;
+    } catch(e) {}
+  }
+
+  if (!perfilAtual) {
+    tipoUsuario = null;
+    mostrarMensagem("⚠️ Perfil não encontrado. Contate o admin.", "erro");
+    // NÃO faz signOut — apenas não aplica a sessão
     atualizarUI();
     return;
   }
 
-  tipoUsuario = perfil.role;
+  if (!perfilAtual.aprovado) {
+    tipoUsuario = null;
+    mostrarMensagem("⏳ Conta aguardando aprovação do admin.", "erro");
+    // NÃO faz signOut — usuário pode tentar mais tarde
+    atualizarUI();
+    return;
+  }
 
-  // Carrega senha admin para adminAction (só para admin)
+  tipoUsuario = perfilAtual.role;
+
+  // Carrega senha admin
   if (tipoUsuario === "admin") {
     try {
       const rows = await supaGet("configuracoes", "chave=eq.senhas");
@@ -424,7 +458,10 @@ async function aplicarSessao(session) {
   }
 
   atualizarUI();
-  mostrarMensagem(`✅ Bem-vindo, ${perfil.nick}!`, "sucesso");
+  // Só mostra boas-vindas no login real, não no refresh
+  if (event === "SIGNED_IN") {
+    mostrarMensagem(`✅ Bem-vindo, ${perfilAtual.nick}!`, "sucesso");
+  }
 }
 
 // ── Atualiza a interface conforme o papel ──
@@ -615,12 +652,13 @@ let inicializacaoConcluida = false;
 let aplicandoSessao = false; // evita chamadas simultâneas
 
 _supa.auth.onAuthStateChange(async (event, session) => {
-  // Ignora eventos durante inicialização exceto SIGNED_IN e INITIAL_SESSION
+  console.log("Auth event:", event);
+  // Ignora SIGNED_OUT durante inicialização (falso positivo do refresh)
   if (!inicializacaoConcluida && event === "SIGNED_OUT") return;
   if (aplicandoSessao) return;
   aplicandoSessao = true;
   try {
-    await aplicarSessao(session);
+    await aplicarSessao(session, event);
   } finally {
     aplicandoSessao = false;
   }
@@ -2336,7 +2374,7 @@ async function expirarPendentesVencidos() {
     const { data: { session } } = await _supa.auth.getSession();
     if (session) {
       aplicandoSessao = true;
-      await aplicarSessao(session);
+      await aplicarSessao(session, "INITIAL_SESSION");
       aplicandoSessao = false;
     }
   } catch(e) {
