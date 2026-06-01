@@ -544,7 +544,7 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   .admin-input-row { flex-direction: column; }
   .btn-admin-salvar { width: 100%; }
   .admin-ag-tabs { gap: 4px; }
-  .admin-ag-tab { font-size: 10px; padding: 5px 8px; }
+  .admin-ag-tab, .srv-ag-tab { font-size: 10px; padding: 5px 8px; }
 
   /* Modal */
   .modal-box { padding: 20px; width: 92vw; }
@@ -2111,7 +2111,9 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   border-bottom: 1px solid var(--border);
 }
 
-.admin-ag-tab {
+.admin-ag-tab,
+.srv-ag-tab,
+.perm-tab {
   background: rgba(201,168,76,0.06);
   border: 1px solid rgba(201,168,76,0.2);
   color: rgba(232,223,192,0.55);
@@ -2125,8 +2127,10 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   letter-spacing: 0.5px;
 }
 
-.admin-ag-tab:hover { color: var(--gold); border-color: rgba(201,168,76,0.4); }
-.admin-ag-tab.active { color: var(--gold); border-color: var(--gold); background: rgba(201,168,76,0.12); }
+.admin-ag-tab:hover,
+.srv-ag-tab:hover { color: var(--gold); border-color: rgba(201,168,76,0.4); }
+.admin-ag-tab.active,
+.srv-ag-tab.active { color: var(--gold); border-color: var(--gold); background: rgba(201,168,76,0.12); }
 
 @media (max-width: 768px) {
   #tab-historico { padding: 0 12px; margin: 16px auto 24px; }
