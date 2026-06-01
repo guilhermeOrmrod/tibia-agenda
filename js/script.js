@@ -1227,8 +1227,17 @@ function gerarAcoesAdmin(ag) {
   return "";
 }
 
+// Atualiza um agendamento usando o caminho certo conforme o papel:
+// admin → adminAction (senha admin); serviceiro → supaAction com validação por JWT.
+async function updateAgendamento(id, dados) {
+  if (tipoUsuario === "admin") {
+    return adminAction("update", "agendamentos", id, dados);
+  }
+  return supaAction("serviceiro_update_ag", "agendamentos", id, dados);
+}
+
 async function aprovarAgendamento(id, lista) {
-  await adminAction("update", "agendamentos", id, { status: "aprovado" });
+  await updateAgendamento(id, { status: "aprovado" });
   const ag = lista.find(a => a.id === id);
   if (ag) {
     calendar.addEvent({
@@ -1256,7 +1265,7 @@ async function recusarAgendamento(id, statusAtual) {
   const icone      = eCancelamento ? "🚫" : "❌";
   const obs        = `${icone} ${eCancelamento ? "Cancelado" : "Recusado"}: ${motivo.trim()}`;
 
-  await adminAction("update", "agendamentos", id, { status: novoStatus, obs_conclusao: obs });
+  await updateAgendamento(id, { status: novoStatus, obs_conclusao: obs });
 
   const ev = calendar.getEventById(id);
   if (ev) ev.remove();
@@ -1267,7 +1276,7 @@ async function recusarAgendamento(id, statusAtual) {
 }
 
 async function atualizarStatusAg(id, novoStatus, msg) {
-  await adminAction("update", "agendamentos", id, { status: novoStatus });
+  await updateAgendamento(id, { status: novoStatus });
   const ev = calendar.getEventById(id);
   if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
   mostrarMensagem(msg, "sucesso");
@@ -1281,7 +1290,7 @@ async function encerrarAgendamento(ag) {
     mostrarMensagem("⚠️ Informe o motivo do encerramento.", "erro");
     return;
   }
-  await adminAction("update", "agendamentos", ag.id, {
+  await updateAgendamento(ag.id, {
     status: "encerrado",
     obs_conclusao: `🛑 Encerrado antecipadamente: ${motivo.trim()}`
   });
@@ -1311,7 +1320,7 @@ async function concluirAgendamento(ag) {
   const obs = prompt("Observação da conclusão (opcional):");
   const obsTexto = obs && obs.trim() ? `✅ Concluído: ${obs.trim()}` : "✅ Concluído com sucesso.";
 
-  await adminAction("update", "agendamentos", ag.id, { status: "concluido", obs_conclusao: obsTexto });
+  await updateAgendamento(ag.id, { status: "concluido", obs_conclusao: obsTexto });
   const ev = calendar.getEventById(ag.id);
   if (ev) ev.setProp("color", "#4caf6e");
   mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
@@ -1703,12 +1712,13 @@ async function carregarMeusAgendamentos(status = "pendente") {
     }
 
     return `
-      <div class="agendamento-card ${ag.status}">
+      <div class="agendamento-card ${ag.status}" style="${new Date(ag.fim) < new Date() && (ag.status==='pendente'||ag.status==='aprovado') ? 'border-left:3px solid #e05a3a;opacity:0.85' : ''}">
         <div class="ag-header">
           <span class="ag-nome">${ag.numero_chamado ? `<span class="ag-chamado">#${ag.numero_chamado}</span>` : ""} ${ag.nome_cliente}</span>
           <span class="ag-status-badge">${STATUS_ICONS[ag.status]} ${STATUS_LABELS[ag.status]}</span>
         </div>
         <div class="ag-info">
+          <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
           <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
           <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
           ${ag.obs_conclusao ? `<span style="font-style:italic;color:rgba(232,223,192,0.6)">📝 ${ag.obs_conclusao}</span>` : ""}
