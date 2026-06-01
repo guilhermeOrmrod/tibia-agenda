@@ -1108,7 +1108,10 @@ document.querySelectorAll(".admin-ag-tab").forEach(tab => {
 async function carregarAgendamentosPendentes(status = "pendente") {
   if (tipoUsuario !== "admin") return;
   try {
-    const ags = await supaGet("agendamentos", `status=eq.${status}&order=inicio.asc`);
+    const query = status === "todos"
+      ? "order=inicio.desc"
+      : `status=eq.${status}&order=inicio.asc`;
+    const ags = await supaGet("agendamentos", query);
     const badge = document.getElementById("badgeAgendamentos");
 
     // Badge só para pendentes
@@ -1121,7 +1124,8 @@ async function carregarAgendamentosPendentes(status = "pendente") {
 
     const container = document.getElementById("listaAgendamentosPendentes");
     if (ags.length === 0) {
-      container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">Nenhum agendamento com status "${STATUS_LABELS[status]}".</p>`;
+      const rotulo = status === "todos" ? "Todos" : (STATUS_LABELS[status] || status);
+      container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">Nenhum agendamento${status === "todos" ? "." : ` com status "${rotulo}".`}</p>`;
       return;
     }
 
@@ -1129,11 +1133,12 @@ async function carregarAgendamentosPendentes(status = "pendente") {
       const acoes    = gerarAcoesAdmin(ag);
       const numChamado = ag.numero_chamado ? `<span class="ag-chamado">#${ag.numero_chamado}</span>` : '';
       const expirado = new Date(ag.fim) < new Date();
+      const st       = ag.status; // usa o status real do agendamento (importante na aba "Todos")
       return `
-        <div class="agendamento-card ${status}" style="${expirado ? 'border-left:3px solid #e05a3a;opacity:0.85' : ''}">
+        <div class="agendamento-card ${st}" style="${expirado ? 'border-left:3px solid #e05a3a;opacity:0.85' : ''}">
           <div class="ag-header">
             <span class="ag-nome">${numChamado} ${ag.nome_cliente} ${expirado ? '<span style="font-size:10px;color:#e05a3a;font-family:Cinzel,serif">⏰ EXPIRADO</span>' : ''}</span>
-            <span class="ag-status-badge">${STATUS_ICONS[status]} ${STATUS_LABELS[status]}</span>
+            <span class="ag-status-badge">${STATUS_ICONS[st]} ${STATUS_LABELS[st]}</span>
           </div>
           <div class="ag-info">
             <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
