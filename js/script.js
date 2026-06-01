@@ -465,7 +465,7 @@ async function aplicarSessao(session, event = '') {
 }
 
 // ── Atualiza a interface conforme o papel ──
-function atualizarUI() {
+async function atualizarUI() {
   const logado       = tipoUsuario !== null;
   const isAdmin      = tipoUsuario === "admin";
   const isServiceiro = tipoUsuario === "serviceiro";
@@ -1914,7 +1914,7 @@ async function carregarPainelAdmin() {
     await carregarHorariosCards();
     // Carrega permissões
     await carregarPermissoes();
-    renderizarPermissoes(permRoleAtual);
+    renderizarPermissoes("cliente");
     // Carrega sugestões
     carregarSugestoes();
     // Carrega agendamentos pendentes
