@@ -1237,18 +1237,30 @@ async function updateAgendamento(id, dados) {
 }
 
 async function aprovarAgendamento(id, lista) {
-  await updateAgendamento(id, { status: "aprovado" });
-  const ag = lista.find(a => a.id === id);
-  if (ag) {
-    calendar.addEvent({
-      id, title: `#${ag.numero_chamado} ${ag.serviceiro} → ${ag.nome_cliente} (${ag.hunt})`,
-      start: ag.inicio, end: ag.fim, color: "#9333ea",
-      extendedProps: { id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado", numero_chamado: ag.numero_chamado }
-    });
+  try {
+    await updateAgendamento(id, { status: "aprovado" });
+    const ag = lista.find(a => a.id === id);
+
+    if (tipoUsuario === "admin") {
+      if (ag && typeof calendar !== "undefined" && calendar) {
+        calendar.addEvent({
+          id, title: `#${ag.numero_chamado} ${ag.serviceiro} → ${ag.nome_cliente} (${ag.hunt})`,
+          start: ag.inicio, end: ag.fim, color: "#9333ea",
+          extendedProps: { id, nome_cliente: ag.nome_cliente, serviceiro: ag.serviceiro, vocacao: ag.vocacao, tipo: ag.tipo, hunt: ag.hunt, status: "aprovado", numero_chamado: ag.numero_chamado }
+        });
+      }
+      mostrarMensagem(`✅ Agendamento aprovado! Chamado #${ag?.numero_chamado} confirmado.`, "sucesso");
+      carregarAgendamentosPendentes(abaAgAtual);
+      if (dataFiltroEl) verificarDisponibilidade(dataFiltroEl.value);
+    } else {
+      // Serviceiro: apenas recarrega o próprio painel
+      mostrarMensagem(`✅ Chamado #${ag?.numero_chamado} aceito!`, "sucesso");
+      carregarMeusAgendamentos("pendente");
+    }
+  } catch (e) {
+    mostrarMensagem(`❌ Erro ao aceitar: ${e.message}`, "erro");
+    console.error("aprovarAgendamento:", e);
   }
-  mostrarMensagem(`✅ Agendamento aprovado! Chamado #${ag?.numero_chamado} confirmado.`, "sucesso");
-  carregarAgendamentosPendentes(abaAgAtual);
-  verificarDisponibilidade(dataFiltroEl.value);
 }
 
 async function recusarAgendamento(id, statusAtual) {
@@ -1265,23 +1277,39 @@ async function recusarAgendamento(id, statusAtual) {
   const icone      = eCancelamento ? "🚫" : "❌";
   const obs        = `${icone} ${eCancelamento ? "Cancelado" : "Recusado"}: ${motivo.trim()}`;
 
-  await updateAgendamento(id, { status: novoStatus, obs_conclusao: obs });
-
-  const ev = calendar.getEventById(id);
-  if (ev) ev.remove();
-
-  mostrarMensagem(`${icone} Agendamento ${novoStatus}.`, "erro");
-  carregarAgendamentosPendentes(abaAgAtual);
-  verificarDisponibilidade(dataFiltroEl.value);
+  try {
+    await updateAgendamento(id, { status: novoStatus, obs_conclusao: obs });
+    if (typeof calendar !== "undefined" && calendar) {
+      const ev = calendar.getEventById(id);
+      if (ev) ev.remove();
+    }
+    mostrarMensagem(`${icone} Agendamento ${novoStatus}.`, "erro");
+    if (tipoUsuario === "admin") {
+      carregarAgendamentosPendentes(abaAgAtual);
+      if (dataFiltroEl) verificarDisponibilidade(dataFiltroEl.value);
+    } else {
+      carregarMeusAgendamentos(eCancelamento ? "aprovado" : "pendente");
+    }
+  } catch (e) {
+    mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
+    console.error("recusarAgendamento:", e);
+  }
 }
 
 async function atualizarStatusAg(id, novoStatus, msg) {
-  await updateAgendamento(id, { status: novoStatus });
-  const ev = calendar.getEventById(id);
-  if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
-  mostrarMensagem(msg, "sucesso");
-  if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
-  if (tipoUsuario === "serviceiro") carregarMeusAgendamentos(novoStatus === "em_andamento" ? "aprovado" : "em_andamento");
+  try {
+    await updateAgendamento(id, { status: novoStatus });
+    if (typeof calendar !== "undefined" && calendar) {
+      const ev = calendar.getEventById(id);
+      if (ev) ev.setProp("color", novoStatus === "em_andamento" ? "#378add" : "#4caf6e");
+    }
+    mostrarMensagem(msg, "sucesso");
+    if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
+    if (tipoUsuario === "serviceiro") carregarMeusAgendamentos(novoStatus === "em_andamento" ? "aprovado" : "em_andamento");
+  } catch (e) {
+    mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
+    console.error("atualizarStatusAg:", e);
+  }
 }
 
 async function encerrarAgendamento(ag) {
@@ -1290,15 +1318,26 @@ async function encerrarAgendamento(ag) {
     mostrarMensagem("⚠️ Informe o motivo do encerramento.", "erro");
     return;
   }
-  await updateAgendamento(ag.id, {
-    status: "encerrado",
-    obs_conclusao: `🛑 Encerrado antecipadamente: ${motivo.trim()}`
-  });
-  const ev = calendar.getEventById(ag.id);
-  if (ev) ev.setProp("color", "#e05a3a");
-  mostrarMensagem("🛑 Serviço encerrado antecipadamente.", "erro");
-  carregarAgendamentosPendentes(abaAgAtual);
-  verificarDisponibilidade(dataFiltroEl.value);
+  try {
+    await updateAgendamento(ag.id, {
+      status: "encerrado",
+      obs_conclusao: `🛑 Encerrado antecipadamente: ${motivo.trim()}`
+    });
+    if (typeof calendar !== "undefined" && calendar) {
+      const ev = calendar.getEventById(ag.id);
+      if (ev) ev.setProp("color", "#e05a3a");
+    }
+    mostrarMensagem("🛑 Serviço encerrado antecipadamente.", "erro");
+    if (tipoUsuario === "admin") {
+      carregarAgendamentosPendentes(abaAgAtual);
+      if (dataFiltroEl) verificarDisponibilidade(dataFiltroEl.value);
+    } else {
+      carregarMeusAgendamentos("aprovado");
+    }
+  } catch (e) {
+    mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
+    console.error("encerrarAgendamento:", e);
+  }
 }
 
 async function concluirAgendamento(ag) {
@@ -1320,13 +1359,21 @@ async function concluirAgendamento(ag) {
   const obs = prompt("Observação da conclusão (opcional):");
   const obsTexto = obs && obs.trim() ? `✅ Concluído: ${obs.trim()}` : "✅ Concluído com sucesso.";
 
-  await updateAgendamento(ag.id, { status: "concluido", obs_conclusao: obsTexto });
-  const ev = calendar.getEventById(ag.id);
-  if (ev) ev.setProp("color", "#4caf6e");
-  mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
-  carregarAgendamentosPendentes(abaAgAtual);
-  // Solicita avaliação ao cliente
-  mostrarModalAvaliacao(ag);
+  try {
+    await updateAgendamento(ag.id, { status: "concluido", obs_conclusao: obsTexto });
+    if (typeof calendar !== "undefined" && calendar) {
+      const ev = calendar.getEventById(ag.id);
+      if (ev) ev.setProp("color", "#4caf6e");
+    }
+    mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
+    if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
+    else carregarMeusAgendamentos("em_andamento");
+    // Solicita avaliação ao cliente
+    mostrarModalAvaliacao(ag);
+  } catch (e) {
+    mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
+    console.error("concluirAgendamento:", e);
+  }
 }
 
 function mostrarModalAvaliacao(ag) {
