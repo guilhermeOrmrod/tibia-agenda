@@ -1467,7 +1467,14 @@ async function carregarUsuarios(filtroRole = "pendente") {
 
   try {
     let query = _supa.from("perfis").select("*").order("criado_em", { ascending: false });
-    if (filtroRole !== "todos") query = query.eq("role", filtroRole);
+
+    if (filtroRole === "pendente") {
+      // Pendentes = qualquer role com aprovado=false
+      query = query.eq("aprovado", false);
+    } else if (filtroRole !== "todos") {
+      query = query.eq("role", filtroRole).eq("aprovado", true);
+    }
+
     const { data: perfis, error } = await query;
 
     if (error) throw error;
