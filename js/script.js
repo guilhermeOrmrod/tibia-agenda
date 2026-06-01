@@ -2417,24 +2417,34 @@ document.getElementById("btnFecharBanner").addEventListener("click", () => {
   sessionStorage.setItem("banner_fechado", "1");
 });
 
-// ── Detecta reset de senha via link do email ──
+// ── Detecta link vindo do email (confirmação de cadastro vs. reset de senha) ──
 (async () => {
   const hash = window.location.hash;
-  if (hash.includes("type=recovery") || hash.includes("access_token")) {
-    // Extrai o token da URL
-    const params = new URLSearchParams(hash.replace("#", ""));
-    const accessToken = params.get("access_token");
-    if (accessToken) {
-      // Define sessão com o token do email
-      await _supa.auth.setSession({
-        access_token: accessToken,
-        refresh_token: params.get("refresh_token") || ""
-      });
-      // Mostra modal de nova senha
-      mostrarModalNovaSenha();
-      // Limpa o hash da URL
-      history.replaceState(null, "", window.location.pathname);
-    }
+  if (!hash.includes("access_token") && !hash.includes("type=")) return;
+
+  const params      = new URLSearchParams(hash.replace("#", ""));
+  const accessToken = params.get("access_token");
+  // type pode vir no hash (#type=recovery) ou na query (?type=recovery)
+  const queryParams = new URLSearchParams(window.location.search);
+  const tipo        = params.get("type") || queryParams.get("type"); // "recovery" | "signup" | ...
+
+  if (!accessToken) return;
+
+  // Estabelece a sessão a partir do token do link
+  await _supa.auth.setSession({
+    access_token: accessToken,
+    refresh_token: params.get("refresh_token") || ""
+  });
+
+  // Limpa o hash da URL em qualquer caso
+  history.replaceState(null, "", window.location.pathname);
+
+  if (tipo === "recovery") {
+    // Veio de "Esqueceu a senha?" → pedir nova senha
+    mostrarModalNovaSenha();
+  } else {
+    // Confirmação de cadastro (type=signup) ou magic link → só entra no site
+    mostrarMensagem("✅ E-mail confirmado! Você já está logado.", "sucesso");
   }
 })();
 
