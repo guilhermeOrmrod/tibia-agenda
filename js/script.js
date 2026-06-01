@@ -1080,7 +1080,8 @@ const STATUS_ICONS = {
   concluido:    "🏆",
   recusado:     "❌",
   encerrado:    "🛑",
-  cancelado:    "🚫"
+  cancelado:    "🚫",
+  expirado:     "⏰"
 };
 
 const STATUS_LABELS = {
@@ -1090,7 +1091,8 @@ const STATUS_LABELS = {
   concluido:    "Concluído",
   recusado:     "Recusado",
   encerrado:    "Encerrado",
-  cancelado:    "Cancelado"
+  cancelado:    "Cancelado",
+  expirado:     "Expirado"
 };
 
 let abaAgAtual = "pendente";
@@ -1947,7 +1949,7 @@ async function carregarDashboard() {
     const total     = todos.length;
     const concluidos = todos.filter(a => a.status === "concluido").length;
     const pendentes  = todos.filter(a => a.status === "pendente").length;
-    const cancelados = todos.filter(a => ["cancelado","recusado","encerrado"].includes(a.status)).length;
+    const cancelados = todos.filter(a => ["cancelado","recusado","encerrado","expirado"].includes(a.status)).length;
 
     // Métricas principais
     document.getElementById("dashMetricas").innerHTML = `
@@ -2610,12 +2612,12 @@ async function expirarPendentesVencidos() {
     if (tipoUsuario === "admin" && SENHA_ADMIN_DIN) {
       for (const ag of vencidos) {
         await adminAction("update", "agendamentos", ag.id, {
-          status: "recusado",
+          status: "expirado",
           obs_conclusao: "⏰ Expirado automaticamente — não foi aceito dentro do prazo."
         });
       }
       if (vencidos.length > 0) {
-        mostrarMensagem(`⚠️ ${vencidos.length} agendamento(s) pendente(s) expiraram e foram recusados automaticamente.`, "erro");
+        mostrarMensagem(`⚠️ ${vencidos.length} agendamento(s) pendente(s) expiraram automaticamente.`, "erro");
         carregarAgendamentosPendentes(abaAgAtual);
         verificarDisponibilidade(dataFiltroEl.value);
       }

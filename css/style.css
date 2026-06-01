@@ -2197,6 +2197,32 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   opacity: 0.8;
 }
 
+/* ── Status recusado ── */
+.agendamento-card.recusado {
+  border-left: 3px solid #c0584f;
+  opacity: 0.8;
+}
+.hc-badge.recusado {
+  background: rgba(192,88,79,0.15);
+  color: #d98a82;
+  border: 1px solid rgba(192,88,79,0.35);
+}
+
+/* ── Status expirado ── */
+.agendamento-card.expirado {
+  border-left: 3px solid #e0a23a;
+  opacity: 0.8;
+}
+.hc-badge.expirado {
+  background: rgba(224,162,58,0.15);
+  color: #f0c040;
+  border: 1px solid rgba(224,162,58,0.35);
+}
+.historico-card.status-expirado {
+  border-left: 3px solid #e0a23a;
+  opacity: 0.75;
+}
+
 /* ── Número de chamado ── */
 .ag-chamado {
   font-family: 'Cinzel', serif;
