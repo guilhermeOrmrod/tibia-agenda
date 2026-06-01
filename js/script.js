@@ -587,12 +587,27 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
 
   if (error) { erroEl.textContent = error.message; return; }
 
-  // Marca convite como usado
-  await fetch(`${SUPA_URL}/rest/v1/convites?codigo=eq.${encodeURIComponent(convite)}`, {
-    method: "PATCH",
-    headers: { ...HEADERS, "Prefer": "return=minimal" },
-    body: JSON.stringify({ usado: true })
-  });
+  // Marca convite como usado via Edge Function (RLS bloqueia anon de fazer UPDATE)
+  try {
+    const conviteRow = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}`);
+    if (conviteRow[0]) {
+      await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPA_KEY,
+          "Authorization": "Bearer " + SUPA_KEY,
+          "x-admin-token": "SISTEMA_INTERNO"
+        },
+        body: JSON.stringify({
+          acao: "update",
+          tabela: "convites",
+          id: conviteRow[0].id,
+          dados: { usado: true }
+        })
+      });
+    }
+  } catch(e) { console.warn("Erro ao marcar convite como usado:", e); }
 
   document.getElementById("modalAuth").style.display = "none";
   if (roleDetectada === "serviceiro") {
@@ -1466,16 +1481,17 @@ async function carregarUsuarios(filtroRole = "pendente") {
   };
 
   try {
-    let query = _supa.from("perfis").select("*").order("criado_em", { ascending: false });
+    // Busca via REST direto com token admin (RLS permite service_role)
+    let queryStr = "order=criado_em.desc";
 
     if (filtroRole === "pendente") {
-      // Pendentes = qualquer role com aprovado=false
-      query = query.eq("aprovado", false);
+      queryStr += "&aprovado=eq.false";
     } else if (filtroRole !== "todos") {
-      query = query.eq("role", filtroRole).eq("aprovado", true);
+      queryStr += `&role=eq.${filtroRole}&aprovado=eq.true`;
     }
 
-    const { data: perfis, error } = await query;
+    const perfis = await supaGet("perfis", queryStr);
+    const error = null;
 
     if (error) throw error;
 

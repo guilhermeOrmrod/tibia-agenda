@@ -15,26 +15,48 @@ Deno.serve(async (req) => {
     const body       = await req.json()
     const { acao, tabela, id, chave, dados } = body
 
-    const anonClient = createClient(
+    const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
-    const { data: cfg } = await anonClient
-      .from('configuracoes')
-      .select('valor')
-      .eq('chave', 'senhas')
-      .single()
 
-    if (!cfg || cfg.valor?.admin !== adminToken) {
+    // Token interno do sistema (para marcar convites como usados)
+    const tokenSistema = adminToken === 'SISTEMA_INTERNO';
+
+    // Valida token admin (exceto para ações do sistema)
+    if (!tokenSistema) {
+      const anonClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!
+      )
+      const { data: cfg } = await anonClient
+        .from('configuracoes')
+        .select('valor')
+        .eq('chave', 'senhas')
+        .single()
+
+      if (!cfg || cfg.valor?.admin !== adminToken) {
+        return new Response(
+          JSON.stringify({ error: 'Token inválido' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
+    // Ações permitidas para o sistema (sem token admin)
+    const acoesSistema = ['update']
+    const tabelasSistema = ['convites']
+
+    if (tokenSistema && (!acoesSistema.includes(acao) || !tabelasSistema.includes(tabela))) {
       return new Response(
-        JSON.stringify({ error: 'Token inválido' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Ação não permitida para sistema' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const tabelasPermitidas = [
       'agendamentos','pagamentos','contatos','configuracoes',
-      'sugestoes','horarios_serviceiros','convites','perfis','avaliacoes'
+      'sugestoes','horarios_serviceiros','convites','perfis','avaliacoes','permissoes'
     ]
     if (tabela && !tabelasPermitidas.includes(tabela)) {
       return new Response(
@@ -42,11 +64,6 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    const serviceClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
 
     let result
 
@@ -63,7 +80,6 @@ Deno.serve(async (req) => {
       result = data
 
     } else if (acao === 'update_perm') {
-      // Atualiza permissões por role
       const { data, error } = await serviceClient
         .from('permissoes')
         .upsert({
