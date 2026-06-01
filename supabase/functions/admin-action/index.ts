@@ -98,6 +98,15 @@ Deno.serve(async (req) => {
       if (error) throw error
       result = { success: true }
 
+    } else if (acao === 'delete_user') {
+      // Exclusão total: remove a linha em perfis E o usuário em auth.users,
+      // liberando o email para novo cadastro. id = uuid do usuário.
+      // Apaga perfis primeiro (ignora erro caso a linha já não exista).
+      await serviceClient.from('perfis').delete().eq('id', id)
+      const { error } = await serviceClient.auth.admin.deleteUser(id)
+      if (error) throw error
+      result = { success: true }
+
     } else if (acao === 'select') {
       let q = serviceClient.from(tabela).select('*')
       // filtros: array de { coluna, op, valor }, op em ('eq','neq')

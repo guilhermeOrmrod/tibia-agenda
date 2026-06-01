@@ -1570,9 +1570,9 @@ async function carregarUsuarios(filtroRole = "pendente") {
     // Remover usuário
     container.querySelectorAll("[data-remover-usr]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (confirm("Remover este usuário? Esta ação não pode ser desfeita.")) {
-          await adminAction("delete", "perfis", btn.dataset.removerUsr);
-          mostrarMensagem("🗑️ Usuário removido.", "sucesso");
+        if (confirm("Excluir este usuário por completo?\n\nIsto remove o perfil E o login (libera o e-mail para novo cadastro). Esta ação não pode ser desfeita.")) {
+          await adminAction("delete_user", "perfis", btn.dataset.removerUsr);
+          mostrarMensagem("🗑️ Usuário excluído por completo — e-mail liberado.", "sucesso");
           carregarUsuarios(filtroRole);
         }
       });
