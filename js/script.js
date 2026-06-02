@@ -719,58 +719,7 @@ document.getElementById("formAgendamento")?.addEventListener("focusin", () => {
   const nomeEl = document.getElementById("nome");
   if (nomeEl && !nomeEl.value && perfilAtual?.nick) {
     nomeEl.value = perfilAtual.nick;
-    buscarCharTibia(nomeEl.value);
   }
-});
-
-// ── Busca dados do personagem na TibiaData API (vocação, level, mundo) ──
-let charAtual = null;          // guarda os dados do char para salvar no agendamento
-let _charLookupTimer = null;
-
-async function buscarCharTibia(nick) {
-  const box = document.getElementById("charInfo");
-  const nome = (nick || "").trim();
-  charAtual = null;
-  if (!box) return;
-  if (nome.length < 2) { box.style.display = "none"; box.innerHTML = ""; return; }
-
-  box.style.display = "block";
-  box.style.background = "rgba(232,223,192,0.06)";
-  box.style.border = "1px solid rgba(201,168,76,0.2)";
-  box.style.color = "rgba(232,223,192,0.6)";
-  box.innerHTML = "🔎 Buscando personagem...";
-
-  try {
-    const res = await fetch(`https://api.tibiadata.com/v4/character/${encodeURIComponent(nome)}`);
-    if (!res.ok) throw new Error("not ok");
-    const data = await res.json();
-    const c = data?.character?.character;
-
-    if (!c || !c.name) {
-      box.style.background = "rgba(224,90,58,0.1)";
-      box.style.border = "1px solid rgba(224,90,58,0.3)";
-      box.style.color = "#e0a23a";
-      box.innerHTML = "⚠️ Personagem não encontrado no Tibia. Confira o nick (pode preencher mesmo assim).";
-      return;
-    }
-
-    charAtual = { nome: c.name, vocacao: c.vocation, level: c.level, mundo: c.world };
-    box.style.background = "rgba(76,175,110,0.1)";
-    box.style.border = "1px solid rgba(76,175,110,0.3)";
-    box.style.color = "#9fe1cb";
-    box.innerHTML = `✅ <b>${c.name}</b> — ${c.vocation} · Level ${c.level} · ${c.world}`;
-  } catch (e) {
-    box.style.background = "rgba(232,223,192,0.06)";
-    box.style.border = "1px solid rgba(201,168,76,0.2)";
-    box.style.color = "rgba(232,223,192,0.5)";
-    box.innerHTML = "ℹ️ Não foi possível consultar agora. Você pode agendar normalmente.";
-  }
-}
-
-document.getElementById("nome")?.addEventListener("input", (e) => {
-  const v = e.target.value;
-  clearTimeout(_charLookupTimer);
-  _charLookupTimer = setTimeout(() => buscarCharTibia(v), 600);
 });
 
 // ── Formulário de agendamento ─────────────
@@ -909,12 +858,7 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
       nome_cliente, serviceiro, vocacao, tipo, hunt,
       inicio: inicio.toISOString(), fim: fim.toISOString(),
       status: "pendente",
-      numero_chamado: numeroChamado,
-      ...(charAtual && charAtual.nome.toLowerCase() === nome_cliente.toLowerCase() ? {
-        char_vocacao: charAtual.vocacao,
-        char_level:   charAtual.level,
-        char_mundo:   charAtual.mundo
-      } : {})
+      numero_chamado: numeroChamado
     });
   } catch (err) {
     mostrarMensagem(`❌ Não foi possível criar o agendamento: ${err.message}`, "erro");
@@ -927,9 +871,6 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   // Mostra modal com o número do chamado
   mostrarModalChamado(numeroChamado);
   e.target.reset();
-  charAtual = null;
-  const charBox = document.getElementById("charInfo");
-  if (charBox) { charBox.style.display = "none"; charBox.innerHTML = ""; }
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   document.getElementById("huntCustom").style.display = "none";
   document.getElementById("huntCustom").value = "";
@@ -1326,7 +1267,6 @@ async function carregarAgendamentosPendentes(status = "pendente") {
           <div class="ag-info">
             <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
             <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
-            ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
             <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}</span>
             ${ag.obs_conclusao ? `<span style="color:rgba(76,175,110,0.8);font-style:italic">📝 ${ag.obs_conclusao}</span>` : ""}
           </div>
@@ -1693,7 +1633,6 @@ async function carregarHistorico() {
           <div class="hc-detalhe">
             <span>⚔️ ${ag.vocacao}</span>
             <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
-            ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
             <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} – ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
           </div>
           ${ag.obs_conclusao ? `<div class="hc-obs">📝 ${ag.obs_conclusao}</div>` : ""}
@@ -2028,7 +1967,6 @@ async function carregarMeusAgendamentos(status = "pendente") {
         <div class="ag-info">
           <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
           <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
-          ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
           <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
           ${ag.obs_conclusao ? `<span style="font-style:italic;color:rgba(232,223,192,0.6)">📝 ${ag.obs_conclusao}</span>` : ""}
         </div>
