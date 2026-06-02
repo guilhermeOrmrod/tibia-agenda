@@ -90,6 +90,53 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    // ── Modo serviceiro: aprovar/recusar pagamento dos próprios chamados ──
+    if (acao === 'serviceiro_update_pag') {
+      const jwt = req.headers.get('x-user-jwt')
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: 'Sem autenticação' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: `Bearer ${jwt}` } } }
+      )
+      const { data: userData, error: userErr } = await authClient.auth.getUser()
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Sessão inválida' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const uid = userData.user.id
+
+      const { data: perfil } = await serviceClient
+        .from('perfis').select('role, serviceiro_nome, nick').eq('id', uid).single()
+      if (!perfil || perfil.role !== 'serviceiro') {
+        return new Response(JSON.stringify({ error: 'Apenas serviceiros' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const nomeServ = perfil.serviceiro_nome || perfil.nick
+
+      // Confirma que o pagamento é de um chamado deste serviceiro
+      const { data: pag } = await serviceClient
+        .from('pagamentos').select('serviceiro, status').eq('id', id).single()
+      if (!pag || pag.serviceiro !== nomeServ) {
+        return new Response(JSON.stringify({ error: 'Este pagamento não é de um chamado seu' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      const novoStatus = dados?.status
+      if (!['aprovado', 'recusado'].includes(novoStatus)) {
+        return new Response(JSON.stringify({ error: 'Status de pagamento inválido' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      const { error } = await serviceClient.from('pagamentos').update({ status: novoStatus }).eq('id', id)
+      if (error) throw error
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
 
     // Valida token admin (exceto para ações do sistema)
     if (!tokenSistema) {

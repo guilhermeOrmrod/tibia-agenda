@@ -157,8 +157,7 @@
       <h3>Novo Agendamento</h3>
       <div class="form-grid">
         <input type="text" id="nome" placeholder="Seu nick (ex: Fear Popstar)" required autocomplete="off">
-        <input type="date" id="data" required>
-        <input type="time" id="horaInicio" required>
+        <input type="date" id="data" required>        <input type="time" id="horaInicio" required>
         <input type="time" id="horaFim" required>
         <select id="tipo" required>
           <option value="">Tipo</option>
@@ -185,6 +184,8 @@
           <option value="">Serviceiro</option>
         </select>
       </div>
+      <!-- Selo de dados do personagem (TibiaData) -->
+      <div id="charInfo" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;font-size:13px;font-family:Cinzel,serif"></div>
       <!-- Campo fora do grid para não interferir no layout -->
       <input type="text" id="huntCustom" placeholder="Descreva o hunt desejado" style="display:none;margin-top:8px;width:100%">
       <button type="submit">⚔️ Agendar</button>
@@ -306,6 +307,8 @@
       </div>
       <button id="btnNovoPagamento" class="btn-gold">+ Registrar Pagamento</button>
     </div>
+
+    <div id="pgResumo" class="dash-grid" style="display:none;margin-bottom:18px"></div>
 
     <!-- Formulário novo pagamento -->
     <div id="formPagamento" class="pagamento-form" style="display:none">
