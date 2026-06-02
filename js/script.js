@@ -166,6 +166,14 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
   });
 });
 
+// Link "Termos" dentro do cadastro → fecha o modal e abre a aba de termos
+document.getElementById("linkTermosCadastro")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  const modalAuth = document.getElementById("modalAuth");
+  if (modalAuth) modalAuth.style.display = "none";
+  document.getElementById("btnNavTermos")?.click();
+});
+
 // ── Disponibilidade ────────────────────────
 const dataFiltroEl = document.getElementById("dataFiltro");
 dataFiltroEl.value = new Date().toISOString().split("T")[0];
@@ -571,6 +579,9 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
   if (senha.length < 6) { erroEl.textContent = "Senha deve ter ao menos 6 caracteres."; return; }
   if (!/^[a-zA-ZÀ-ÿ ]+$/.test(nick)) { erroEl.textContent = "Nick inválido — só letras e espaços."; return; }
   if (!convite) { erroEl.textContent = "Informe o código de convite."; return; }
+  if (!document.getElementById("cadAceiteTermos")?.checked) {
+    erroEl.textContent = "Você precisa aceitar os Termos de Uso para criar a conta."; return;
+  }
 
   // Valida código via Edge Function (não expõe a lista de convites)
   let roleDetectada = "cliente";

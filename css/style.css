@@ -2668,3 +2668,30 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 @media (max-width: 768px) {
   #painelPermissoes > div { grid-template-columns: 1fr; }
 }
+
+/* ── Termos e Políticas ── */
+.termos-bloco {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
+}
+.termos-bloco h3 {
+  font-family: 'Cinzel', serif;
+  color: var(--gold);
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.termos-bloco p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(232,223,192,0.75);
+  margin: 0 0 8px;
+}
+.termos-bloco p:last-child { margin-bottom: 0; }
+.termos-destaque {
+  border-color: rgba(224,90,58,0.4);
+  background: rgba(224,90,58,0.06);
+}
+.termos-destaque h3 { color: #e0a23a; }
