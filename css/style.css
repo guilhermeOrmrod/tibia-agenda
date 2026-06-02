@@ -2695,3 +2695,35 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   background: rgba(224,90,58,0.06);
 }
 .termos-destaque h3 { color: #e0a23a; }
+
+/* ── Filtros do painel do serviceiro ── */
+.srv-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.srv-filtros input,
+.srv-filtros select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(201,168,76,0.25);
+  color: #e8dfc0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.srv-filtros input#srvFiltroCliente { flex: 1 1 180px; }
+.srv-filtros input:focus,
+.srv-filtros select:focus { outline: none; border-color: var(--gold); }
+.srv-filtros #srvLimparFiltros {
+  background: rgba(224,90,58,0.12);
+  border: 1px solid rgba(224,90,58,0.3);
+  color: #e0a23a;
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.srv-filtros #srvLimparFiltros:hover { background: rgba(224,90,58,0.2); }

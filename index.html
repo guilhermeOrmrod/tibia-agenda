@@ -615,6 +615,18 @@
           <button class="srv-ag-tab" data-srv-tab="expirado">⏰ Expirados</button>
           <button class="srv-ag-tab" data-srv-tab="encerrado">🛑 Encerrados</button>
         </div>
+        <div class="srv-filtros">
+          <input type="text" id="srvFiltroCliente" placeholder="🔍 Buscar por cliente...">
+          <input type="date" id="srvFiltroData" title="Filtrar por dia">
+          <select id="srvFiltroOrdem">
+            <option value="chamado_desc">Nº chamado (maior→menor)</option>
+            <option value="chamado_asc">Nº chamado (menor→maior)</option>
+            <option value="data_desc">Data (mais recente)</option>
+            <option value="data_asc">Data (mais antiga)</option>
+            <option value="cliente">Nome do cliente (A→Z)</option>
+          </select>
+          <button id="srvLimparFiltros" type="button" title="Limpar filtros">✖️</button>
+        </div>
         <div id="listaMeusAgendamentos"></div>
       </div>
 

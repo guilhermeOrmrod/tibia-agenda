@@ -1975,6 +1975,20 @@ async function carregarPainelServiceiro() {
 
   carregarMeusAgendamentos("pendente");
   carregarMinhaProducao();
+
+  // Filtros do painel do serviceiro
+  const fCli = document.getElementById("srvFiltroCliente");
+  const fDat = document.getElementById("srvFiltroData");
+  const fOrd = document.getElementById("srvFiltroOrdem");
+  if (fCli) fCli.addEventListener("input", renderMeusAgendamentos);
+  if (fDat) fDat.addEventListener("change", renderMeusAgendamentos);
+  if (fOrd) fOrd.addEventListener("change", renderMeusAgendamentos);
+  document.getElementById("srvLimparFiltros")?.addEventListener("click", () => {
+    if (fCli) fCli.value = "";
+    if (fDat) fDat.value = "";
+    if (fOrd) fOrd.value = "chamado_desc";
+    renderMeusAgendamentos();
+  });
 }
 
 // ── Minha Produção: horas trabalhadas (reais) por cliente ──
@@ -2067,8 +2081,57 @@ async function carregarMeusAgendamentos(status = "pendente") {
     `serviceiro=eq.${encodeURIComponent(nomeServ)}&status=eq.${status}&order=inicio.asc`
   );
 
+  // Guarda para os filtros e renderiza aplicando-os
+  _meusAgsCache = ags;
+  _meusStatusAtual = status;
+  renderMeusAgendamentos();
+}
+
+// Cache da aba atual + estado dos filtros
+let _meusAgsCache = [];
+let _meusStatusAtual = "pendente";
+
+function renderMeusAgendamentos() {
+  const container = document.getElementById("listaMeusAgendamentos");
+  if (!container) return;
+  const status = _meusStatusAtual;
+
+  // Lê os filtros
+  const fCliente = (document.getElementById("srvFiltroCliente")?.value || "").toLowerCase().trim();
+  const fData    = document.getElementById("srvFiltroData")?.value || "";
+  const fOrdem   = document.getElementById("srvFiltroOrdem")?.value || "chamado_desc";
+
+  let ags = [..._meusAgsCache];
+
+  // Filtro por nome do cliente
+  if (fCliente) ags = ags.filter(a => (a.nome_cliente || "").toLowerCase().includes(fCliente));
+
+  // Filtro por dia (compara a data de início, no fuso local)
+  if (fData) {
+    ags = ags.filter(a => {
+      const d = new Date(a.inicio);
+      const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      return iso === fData;
+    });
+  }
+
+  // Ordenação
+  ags.sort((a, b) => {
+    switch (fOrdem) {
+      case "chamado_asc":  return (a.numero_chamado||0) - (b.numero_chamado||0);
+      case "chamado_desc": return (b.numero_chamado||0) - (a.numero_chamado||0);
+      case "data_asc":     return new Date(a.inicio) - new Date(b.inicio);
+      case "data_desc":    return new Date(b.inicio) - new Date(a.inicio);
+      case "cliente":      return (a.nome_cliente||"").localeCompare(b.nome_cliente||"", "pt-BR");
+      default:             return 0;
+    }
+  });
+
   if (ags.length === 0) {
-    container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">Nenhum agendamento ${STATUS_LABELS[status]?.toLowerCase() || status}.</p>`;
+    const temFiltro = fCliente || fData;
+    container.innerHTML = `<p style="color:rgba(232,223,192,0.4);font-size:13px;padding:8px 0">${
+      temFiltro ? "Nenhum chamado encontrado com esses filtros." : `Nenhum agendamento ${STATUS_LABELS[status]?.toLowerCase() || status}.`
+    }</p>`;
     return;
   }
 
