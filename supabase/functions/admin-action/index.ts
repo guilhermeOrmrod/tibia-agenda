@@ -116,6 +116,8 @@ Deno.serve(async (req) => {
 
       const patch: Record<string, unknown> = { status: novoStatus }
       if (typeof dados?.obs_conclusao === 'string') patch.obs_conclusao = dados.obs_conclusao
+      if (typeof dados?.anotacoes === 'string') patch.anotacoes = dados.anotacoes
+      if (dados?.valor_final != null && !isNaN(Number(dados.valor_final))) patch.valor_final = Number(dados.valor_final)
       // Marca os momentos reais para cálculo de horas trabalhadas
       if (novoStatus === 'em_andamento') patch.iniciado_em = agora.toISOString()
       if (novoStatus === 'concluido' || novoStatus === 'encerrado') patch.finalizado_em = agora.toISOString()

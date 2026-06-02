@@ -1219,6 +1219,56 @@ const STATUS_LABELS = {
 
 let abaAgAtual = "pendente";
 
+// ── Helpers de detalhes do serviço (Entrega 1) ──
+
+// Duração real em ms: de iniciado_em até finalizado_em; cai para o previsto se faltar.
+function duracaoMs(ag) {
+  const ini = ag.iniciado_em ? new Date(ag.iniciado_em) : new Date(ag.inicio);
+  const fim = ag.finalizado_em ? new Date(ag.finalizado_em) : new Date(ag.fim);
+  const d = fim - ini;
+  return d > 0 ? d : 0;
+}
+
+function fmtDuracao(ms) {
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  if (h === 0) return `${m}min`;
+  return m > 0 ? `${h}h${m}min` : `${h}h`;
+}
+
+// Valor calculado: horas reais × preço/hora (normal ou evento, conforme o tipo).
+function valorCalculado(ag) {
+  const precoHora = (ag.tipo === "evento")
+    ? parseFloat(cfgAtual.precos?.evento || 0)
+    : parseFloat(cfgAtual.precos?.normal || 0);
+  const horas = duracaoMs(ag) / 3600000;
+  return precoHora * horas;
+}
+
+const fmtBRL = (v) => `R$ ${(Number(v) || 0).toFixed(2).replace(".", ",")}`;
+
+// Monta a timeline (etapas com horário) a partir dos timestamps do chamado.
+function timelineHTML(ag) {
+  const etapas = [];
+  if (ag.criado_em)     etapas.push(["📝", "Criado", ag.criado_em]);
+  if (ag.iniciado_em)   etapas.push(["⚔️", "Iniciado", ag.iniciado_em]);
+  if (ag.finalizado_em) {
+    const rotulo = ag.status === "encerrado" ? "Encerrado" : "Concluído";
+    etapas.push([STATUS_ICONS[ag.status] || "🏆", rotulo, ag.finalizado_em]);
+  }
+  if (etapas.length === 0) return "";
+  const fmt = (d) => new Date(d).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  return `
+    <div class="timeline">
+      ${etapas.map(([ic, label, ts]) => `
+        <div class="tl-item">
+          <span class="tl-ic">${ic}</span>
+          <span class="tl-label">${label}</span>
+          <span class="tl-ts">${fmt(ts)}</span>
+        </div>`).join("")}
+    </div>`;
+}
+
 // Listeners das abas internas de agendamentos
 document.querySelectorAll(".admin-ag-tab").forEach(tab => {
   tab.addEventListener("click", () => {
@@ -1488,8 +1538,19 @@ async function concluirAgendamento(ag) {
   const obs = prompt("Observação da conclusão (opcional):");
   const obsTexto = obs && obs.trim() ? `✅ Concluído: ${obs.trim()}` : "✅ Concluído com sucesso.";
 
+  // Anotações do serviço (diário que o cliente vê)
+  const anotacoes = prompt("🗒️ Anotações do serviço (o cliente verá — ex: levels subidos, drops, observações):") || "";
+
+  // Valor: sugere o calculado (horas reais × preço/hora) e deixa ajustar
+  const sugestao = valorCalculado({ ...ag, finalizado_em: new Date().toISOString() });
+  const valorStr = prompt(`💰 Valor a cobrar deste serviço (R$).\nSugestão calculada: ${sugestao.toFixed(2)}\n(edite se quiser ajustar)`, sugestao.toFixed(2));
+  const valorFinal = valorStr !== null ? parseFloat(valorStr.replace(",", ".")) : null;
+
   try {
-    await updateAgendamento(ag.id, { status: "concluido", obs_conclusao: obsTexto });
+    const patch = { status: "concluido", obs_conclusao: obsTexto };
+    if (anotacoes.trim()) patch.anotacoes = anotacoes.trim();
+    if (valorFinal != null && !isNaN(valorFinal)) patch.valor_final = valorFinal;
+    await updateAgendamento(ag.id, patch);
     if (typeof calendar !== "undefined" && calendar) {
       const ev = calendar.getEventById(ag.id);
       if (ev) ev.setProp("color", "#4caf6e");
@@ -1622,7 +1683,10 @@ async function carregarHistorico() {
       return;
     }
 
-    container.innerHTML = ags.map(ag => `
+    container.innerHTML = ags.map(ag => {
+      const concluido = ag.status === "concluido" || ag.status === "encerrado";
+      const valor = ag.valor_final != null ? Number(ag.valor_final) : (concluido ? valorCalculado(ag) : null);
+      return `
       <div class="historico-card status-${ag.status}">
         <div class="hc-status-icon">${STATUS_ICONS[ag.status] || "❓"}</div>
         <div class="hc-body">
@@ -1634,12 +1698,16 @@ async function carregarHistorico() {
             <span>⚔️ ${ag.vocacao}</span>
             <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
             <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} – ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
+            ${concluido ? `<span>⏱️ ${fmtDuracao(duracaoMs(ag))} trabalhadas</span>` : ""}
+            ${valor != null ? `<span style="color:#c9a84c;font-weight:600">💰 ${fmtBRL(valor)}</span>` : ""}
           </div>
+          ${timelineHTML(ag)}
+          ${ag.anotacoes ? `<div class="hc-anotacoes">🗒️ <b>Anotações do serviceiro:</b><br>${ag.anotacoes.replace(/</g,"&lt;").replace(/\n/g,"<br>")}</div>` : ""}
           ${ag.obs_conclusao ? `<div class="hc-obs">📝 ${ag.obs_conclusao}</div>` : ""}
         </div>
         <span class="hc-badge ${ag.status}">${STATUS_LABELS[ag.status] || ag.status}</span>
-      </div>
-    `).join("");
+      </div>`;
+    }).join("");
 
   } catch(e) { container.innerHTML = '<p style="color:rgba(224,90,58,0.7);font-size:13px">Erro ao carregar histórico.</p>'; }
 }

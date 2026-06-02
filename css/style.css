@@ -2055,6 +2055,31 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   margin-top: 4px;
 }
 
+.hc-anotacoes {
+  font-size: 13px;
+  color: rgba(232,223,192,0.75);
+  background: rgba(201,168,76,0.07);
+  border-left: 2px solid rgba(201,168,76,0.4);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+}
+.tl-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.tl-ic { font-size: 13px; }
+.tl-label { color: rgba(232,223,192,0.85); font-family: 'Cinzel', serif; }
+.tl-ts { color: rgba(232,223,192,0.5); }
+
 .hc-badge {
   font-family: 'Cinzel', serif;
   font-size: 11px;
