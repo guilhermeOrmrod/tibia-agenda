@@ -44,7 +44,12 @@ async function supaPost(tabela, body) {
   const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
     method: "POST", headers: HEADERS, body: JSON.stringify(body)
   });
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = (data && (data.message || data.hint || data.details)) || `Erro ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
 }
 
 async function supaPatch(tabela, id, body) {
@@ -899,17 +904,23 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   }
 
   // Salva no Supabase com status pendente e número de chamado
-  await supaPost("agendamentos", {
-    nome_cliente, serviceiro, vocacao, tipo, hunt,
-    inicio: inicio.toISOString(), fim: fim.toISOString(),
-    status: "pendente",
-    numero_chamado: numeroChamado,
-    ...(charAtual && charAtual.nome.toLowerCase() === nome_cliente.toLowerCase() ? {
-      char_vocacao: charAtual.vocacao,
-      char_level:   charAtual.level,
-      char_mundo:   charAtual.mundo
-    } : {})
-  });
+  try {
+    await supaPost("agendamentos", {
+      nome_cliente, serviceiro, vocacao, tipo, hunt,
+      inicio: inicio.toISOString(), fim: fim.toISOString(),
+      status: "pendente",
+      numero_chamado: numeroChamado,
+      ...(charAtual && charAtual.nome.toLowerCase() === nome_cliente.toLowerCase() ? {
+        char_vocacao: charAtual.vocacao,
+        char_level:   charAtual.level,
+        char_mundo:   charAtual.mundo
+      } : {})
+    });
+  } catch (err) {
+    mostrarMensagem(`❌ Não foi possível criar o agendamento: ${err.message}`, "erro");
+    console.error("Erro ao salvar agendamento:", err);
+    return;
+  }
 
   // Não adiciona ao calendário — só aparece após aprovação
   verificarDisponibilidade(dataFiltroEl.value);
