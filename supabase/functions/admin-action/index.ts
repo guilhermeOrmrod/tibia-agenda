@@ -174,23 +174,28 @@ Deno.serve(async (req) => {
     }
 
 
-    // Valida token admin (exceto para ações do sistema)
+    // Valida que quem chama é admin — pelo JWT (exceto ações do sistema)
     if (!tokenSistema) {
-      const anonClient = createClient(
+      const jwt = req.headers.get('x-user-jwt')
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: 'Sem autenticação' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const authClient = createClient(
         Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_ANON_KEY')!
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: `Bearer ${jwt}` } } }
       )
-      const { data: cfg } = await anonClient
-        .from('configuracoes')
-        .select('valor')
-        .eq('chave', 'senhas')
-        .single()
-
-      if (!cfg || cfg.valor?.admin !== adminToken) {
-        return new Response(
-          JSON.stringify({ error: 'Token inválido' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+      const { data: userData, error: userErr } = await authClient.auth.getUser()
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Sessão inválida' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const { data: perfilAdmin } = await serviceClient
+        .from('perfis').select('role').eq('id', userData.user.id).single()
+      if (!perfilAdmin || perfilAdmin.role !== 'admin') {
+        return new Response(JSON.stringify({ error: 'Apenas administradores' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
     }
 

@@ -62,15 +62,16 @@ async function supaDelete(tabela, id) {
 
 // ── Ações privilegiadas via Edge Function (service_role) ──
 async function adminAction(acao, tabela, id = null, dados = null, extra = {}) {
-  // Sempre usa a senha admin como token (só admin chama isso)
-  if (!SENHA_ADMIN_DIN) throw new Error("Ação requer permissão de admin.");
+  // Autentica pelo JWT do admin logado (a Edge Function valida o role).
+  // Não trafega mais a senha admin para o navegador.
+  if (!sessaoAuth?.access_token) throw new Error("Ação requer login de admin.");
   const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
     method: "POST",
     headers: {
       "Content-Type":  "application/json",
       "apikey":        SUPA_KEY,
       "Authorization": "Bearer " + SUPA_KEY,
-      "x-admin-token": SENHA_ADMIN_DIN
+      "x-user-jwt":    sessaoAuth.access_token
     },
     body: JSON.stringify({ acao, tabela, id, dados, ...extra })
   });
@@ -90,7 +91,6 @@ async function supaAction(acao, tabela, id = null, dados = null) {
       "Content-Type":  "application/json",
       "apikey":        SUPA_KEY,
       "Authorization": "Bearer " + SUPA_KEY,
-      "x-admin-token": SENHA_ADMIN_DIN || "",
       "x-user-jwt":   sessaoAuth.access_token
     },
     body: JSON.stringify({ acao, tabela, id, dados, userRole: tipoUsuario })
@@ -449,13 +449,7 @@ async function aplicarSessao(session, event = '') {
 
   tipoUsuario = perfilAtual.role;
 
-  // Carrega senha admin
-  if (tipoUsuario === "admin") {
-    try {
-      const rows = await supaGet("configuracoes", "chave=eq.senhas");
-      if (rows[0]?.valor?.admin) SENHA_ADMIN_DIN = rows[0].valor.admin;
-    } catch(e) {}
-  }
+  // (Não baixamos mais a senha admin para o navegador — a Edge Function valida pelo JWT.)
 
   atualizarUI();
   // Só mostra boas-vindas no login real, não no refresh
@@ -2459,15 +2453,15 @@ function renderizarTagsServiceiros() {
 }
 
 async function salvarConfig(chave, valor) {
-  // configuracoes usa chave como PK — faz PATCH direto via fetch com service_role
-  const token = SENHA_ADMIN_DIN;
+  // configuracoes usa chave como PK — update_config via Edge Function (valida admin pelo JWT)
+  if (!sessaoAuth?.access_token) throw new Error("Ação requer login de admin.");
   await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
     method: "POST",
     headers: {
       "Content-Type":  "application/json",
       "apikey":        SUPA_KEY,
       "Authorization": "Bearer " + SUPA_KEY,
-      "x-admin-token": token
+      "x-user-jwt":    sessaoAuth.access_token
     },
     body: JSON.stringify({
       acao:   "update_config",
@@ -2964,7 +2958,7 @@ async function expirarPendentesVencidos() {
 
     // Atualiza cada um para "expirado" via fetch direto (anon pode inserir, service_role atualiza)
     // Usa adminAction se logado como admin, senão ignora (será feito ao logar)
-    if (tipoUsuario === "admin" && SENHA_ADMIN_DIN) {
+    if (tipoUsuario === "admin" && sessaoAuth?.access_token) {
       for (const ag of vencidos) {
         await adminAction("update", "agendamentos", ag.id, {
           status: "expirado",
