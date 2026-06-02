@@ -585,7 +585,21 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
     options: { data: { nick, role: roleDetectada } }
   });
 
-  if (error) { erroEl.textContent = error.message; return; }
+  if (error) {
+    const msg = (error.message || "").toLowerCase();
+    if (msg.includes("rate limit") || msg.includes("email rate") || msg.includes("over_email_send_rate") || error.status === 429) {
+      erroEl.innerHTML = "⏳ Limite de cadastros atingido no momento. Por segurança, o sistema permite poucas contas novas por hora.<br><br>Aguarde cerca de <b>1 hora</b> e tente novamente, ou fale com um <b>admin</b> para liberar seu acesso.";
+    } else if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("user already")) {
+      erroEl.textContent = "Este e-mail já está cadastrado. Tente fazer login ou use 'Esqueceu a senha?'.";
+    } else if (msg.includes("password") && (msg.includes("least") || msg.includes("weak") || msg.includes("short"))) {
+      erroEl.textContent = "Senha muito curta. Use pelo menos 6 caracteres.";
+    } else if (msg.includes("invalid") && msg.includes("email")) {
+      erroEl.textContent = "E-mail inválido. Verifique e tente novamente.";
+    } else {
+      erroEl.textContent = error.message;
+    }
+    return;
+  }
 
   // Marca convite como usado via Edge Function (RLS bloqueia anon de fazer UPDATE)
   try {
