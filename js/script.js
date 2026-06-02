@@ -1535,35 +1535,100 @@ async function concluirAgendamento(ag) {
     return;
   }
 
-  const obs = prompt("Observação da conclusão (opcional):");
-  const obsTexto = obs && obs.trim() ? `✅ Concluído: ${obs.trim()}` : "✅ Concluído com sucesso.";
+  // Abre o modal de finalização (observação, anotações, valor e print)
+  abrirModalFinalizar(ag);
+}
 
-  // Anotações do serviço (diário que o cliente vê)
-  const anotacoes = prompt("🗒️ Anotações do serviço (o cliente verá — ex: levels subidos, drops, observações):") || "";
+function abrirModalFinalizar(ag) {
+  const antigo = document.getElementById("modalFinalizar");
+  if (antigo) antigo.remove();
 
-  // Valor: sugere o calculado (horas reais × preço/hora) e deixa ajustar
   const sugestao = valorCalculado({ ...ag, finalizado_em: new Date().toISOString() });
-  const valorStr = prompt(`💰 Valor a cobrar deste serviço (R$).\nSugestão calculada: ${sugestao.toFixed(2)}\n(edite se quiser ajustar)`, sugestao.toFixed(2));
-  const valorFinal = valorStr !== null ? parseFloat(valorStr.replace(",", ".")) : null;
+  const horas    = fmtDuracao(duracaoMs({ ...ag, finalizado_em: new Date().toISOString() }));
 
-  try {
-    const patch = { status: "concluido", obs_conclusao: obsTexto };
-    if (anotacoes.trim()) patch.anotacoes = anotacoes.trim();
-    if (valorFinal != null && !isNaN(valorFinal)) patch.valor_final = valorFinal;
-    await updateAgendamento(ag.id, patch);
-    if (typeof calendar !== "undefined" && calendar) {
-      const ev = calendar.getEventById(ag.id);
-      if (ev) ev.setProp("color", "#4caf6e");
+  const modal = document.createElement("div");
+  modal.id = "modalFinalizar";
+  modal.className = "modal";
+  modal.style.display = "flex";
+  modal.innerHTML = `
+    <div class="modal-conteudo" style="max-width:460px">
+      <h3 style="font-family:Cinzel,serif;color:var(--gold);margin:0 0 4px">🏆 Finalizar serviço #${ag.numero_chamado || ""}</h3>
+      <p style="font-size:12px;color:rgba(232,223,192,0.5);margin:0 0 14px">${ag.nome_cliente} · ${ag.hunt} · ${horas} trabalhadas</p>
+
+      <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">💰 Valor a cobrar (R$)</label>
+      <input type="number" id="finValor" step="0.01" value="${sugestao.toFixed(2)}" style="width:100%;margin:4px 0 12px">
+
+      <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">🗒️ Anotações (o cliente verá)</label>
+      <textarea id="finAnotacoes" rows="3" placeholder="Ex: subiu 2 levels, dropou X, sem mortes..." style="width:100%;margin:4px 0 12px;resize:vertical"></textarea>
+
+      <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">📸 Print do serviço (opcional)</label>
+      <input type="file" id="finPrint" accept="image/*" style="width:100%;margin:4px 0 4px">
+      <p style="font-size:11px;color:rgba(232,223,192,0.4);margin:0 0 14px">Imagem até 5MB (jpg, png, webp).</p>
+
+      <div style="display:flex;gap:8px">
+        <button id="finConfirmar" class="btn-gold" style="flex:1">✅ Concluir serviço</button>
+        <button id="finCancelar" class="btn-cancelar" style="flex:0 0 auto">Cancelar</button>
+      </div>
+      <p id="finErro" style="color:#e05a3a;font-size:12px;margin:8px 0 0;min-height:14px"></p>
+    </div>`;
+  document.body.appendChild(modal);
+
+  document.getElementById("finCancelar").onclick = () => modal.remove();
+
+  document.getElementById("finConfirmar").onclick = async () => {
+    const erroEl  = document.getElementById("finErro");
+    const btn     = document.getElementById("finConfirmar");
+    const valorEl = document.getElementById("finValor");
+    const anotEl  = document.getElementById("finAnotacoes");
+    const fileEl  = document.getElementById("finPrint");
+
+    const valorFinal = parseFloat((valorEl.value || "").replace(",", "."));
+    const anotacoes  = (anotEl.value || "").trim();
+    const arquivo    = fileEl.files[0];
+
+    // Validação do print (se anexado)
+    if (arquivo) {
+      if (!arquivo.type.startsWith("image/")) { erroEl.textContent = "O print precisa ser uma imagem."; return; }
+      if (arquivo.size > 5 * 1024 * 1024)     { erroEl.textContent = "Imagem muito grande (máx. 5MB)."; return; }
     }
-    mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
-    if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
-    else { carregarMeusAgendamentos("em_andamento"); carregarMinhaProducao(); }
-    // Solicita avaliação ao cliente
-    mostrarModalAvaliacao(ag);
-  } catch (e) {
-    mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
-    console.error("concluirAgendamento:", e);
-  }
+
+    btn.disabled = true;
+    btn.textContent = "⏳ Finalizando...";
+
+    try {
+      let print_url = "";
+      if (arquivo) {
+        const ext  = (arquivo.name.split(".").pop() || "png").toLowerCase();
+        const path = `chamado_${ag.numero_chamado || ag.id}_${Date.now()}.${ext}`;
+        print_url = await supaUpload("prints-servicos", path, arquivo);
+      }
+
+      const patch = {
+        status: "concluido",
+        obs_conclusao: "✅ Concluído com sucesso."
+      };
+      if (anotacoes) patch.anotacoes = anotacoes;
+      if (!isNaN(valorFinal)) patch.valor_final = valorFinal;
+      if (print_url) patch.print_url = print_url;
+
+      await updateAgendamento(ag.id, patch);
+
+      if (typeof calendar !== "undefined" && calendar) {
+        const ev = calendar.getEventById(ag.id);
+        if (ev) ev.setProp("color", "#4caf6e");
+      }
+      modal.remove();
+      mostrarMensagem("🏆 Serviço concluído!", "sucesso");
+      if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
+      else { carregarMeusAgendamentos("em_andamento"); carregarMinhaProducao(); }
+      mostrarModalAvaliacao(ag);
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = "✅ Concluir serviço";
+      erroEl.textContent = "Erro: " + e.message;
+      console.error("finalizar:", e);
+    }
+  };
 }
 
 function mostrarModalAvaliacao(ag) {
@@ -1702,6 +1767,7 @@ async function carregarHistorico() {
             ${valor != null ? `<span style="color:#c9a84c;font-weight:600">💰 ${fmtBRL(valor)}</span>` : ""}
           </div>
           ${timelineHTML(ag)}
+          ${ag.print_url ? `<a href="${ag.print_url}" target="_blank" class="hc-print"><img src="${ag.print_url}" alt="Print do serviço" loading="lazy"><span>📸 Ver print</span></a>` : ""}
           ${ag.anotacoes ? `<div class="hc-anotacoes">🗒️ <b>Anotações do serviceiro:</b><br>${ag.anotacoes.replace(/</g,"&lt;").replace(/\n/g,"<br>")}</div>` : ""}
           ${ag.obs_conclusao ? `<div class="hc-obs">📝 ${ag.obs_conclusao}</div>` : ""}
         </div>
