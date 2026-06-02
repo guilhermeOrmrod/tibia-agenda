@@ -83,6 +83,9 @@ Deno.serve(async (req) => {
 
       const patch: Record<string, unknown> = { status: novoStatus }
       if (typeof dados?.obs_conclusao === 'string') patch.obs_conclusao = dados.obs_conclusao
+      // Marca os momentos reais para cálculo de horas trabalhadas
+      if (novoStatus === 'em_andamento') patch.iniciado_em = agora.toISOString()
+      if (novoStatus === 'concluido' || novoStatus === 'encerrado') patch.finalizado_em = agora.toISOString()
 
       const { error } = await serviceClient.from('agendamentos').update(patch).eq('id', id)
       if (error) throw error

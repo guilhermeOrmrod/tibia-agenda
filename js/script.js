@@ -1305,7 +1305,6 @@ async function carregarAgendamentosPendentes(status = "pendente") {
           <div class="ag-info">
             <span>⚔️ ${ag.serviceiro} (${ag.vocacao})</span>
             <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
-          ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
             ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
             <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} → ${new Date(ag.fim).toLocaleTimeString("pt-BR", {hour:"2-digit",minute:"2-digit"})}</span>
             ${ag.obs_conclusao ? `<span style="color:rgba(76,175,110,0.8);font-style:italic">📝 ${ag.obs_conclusao}</span>` : ""}
@@ -1395,7 +1394,11 @@ function gerarAcoesAdmin(ag) {
 // admin → adminAction (senha admin); serviceiro → supaAction com validação por JWT.
 async function updateAgendamento(id, dados) {
   if (tipoUsuario === "admin") {
-    return adminAction("update", "agendamentos", id, dados);
+    // Admin grava os mesmos timestamps reais (a Edge Function já faz isso no caminho do serviceiro)
+    const extra = {};
+    if (dados.status === "em_andamento") extra.iniciado_em = new Date().toISOString();
+    if (dados.status === "concluido" || dados.status === "encerrado") extra.finalizado_em = new Date().toISOString();
+    return adminAction("update", "agendamentos", id, { ...dados, ...extra });
   }
   return supaAction("serviceiro_update_ag", "agendamentos", id, dados);
 }
@@ -1497,6 +1500,7 @@ async function encerrarAgendamento(ag) {
       if (dataFiltroEl) verificarDisponibilidade(dataFiltroEl.value);
     } else {
       carregarMeusAgendamentos("aprovado");
+      carregarMinhaProducao();
     }
   } catch (e) {
     mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
@@ -1531,7 +1535,7 @@ async function concluirAgendamento(ag) {
     }
     mostrarMensagem("🏆 Serviço marcado como concluído!", "sucesso");
     if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
-    else carregarMeusAgendamentos("em_andamento");
+    else { carregarMeusAgendamentos("em_andamento"); carregarMinhaProducao(); }
     // Solicita avaliação ao cliente
     mostrarModalAvaliacao(ag);
   } catch (e) {
@@ -1668,7 +1672,6 @@ async function carregarHistorico() {
           <div class="hc-detalhe">
             <span>⚔️ ${ag.vocacao}</span>
             <span>🗺️ ${ag.hunt} · ${ag.tipo}</span>
-          ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
             ${ag.char_vocacao ? `<span>🧙 Cliente: ${ag.char_vocacao} · Lv ${ag.char_level} · ${ag.char_mundo}</span>` : ""}
             <span>📅 ${new Date(ag.inicio).toLocaleString("pt-BR")} – ${new Date(ag.fim).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>
           </div>
@@ -1866,6 +1869,77 @@ async function carregarPainelServiceiro() {
   });
 
   carregarMeusAgendamentos("pendente");
+  carregarMinhaProducao();
+}
+
+// ── Minha Produção: horas trabalhadas (reais) por cliente ──
+async function carregarMinhaProducao() {
+  if (!perfilAtual) return;
+  const nomeServ = perfilAtual.serviceiro_nome || perfilAtual.nick;
+  const resumoEl = document.getElementById("srvResumoHoras");
+  const listaEl  = document.getElementById("srvProducaoClientes");
+  if (!resumoEl || !listaEl) return;
+
+  try {
+    // Só conta serviços que de fato aconteceram: concluídos e encerrados
+    const ags = await supaGet("agendamentos",
+      `serviceiro=eq.${encodeURIComponent(nomeServ)}&status=in.(concluido,encerrado)&order=finalizado_em.desc`
+    );
+
+    // Duração real: de iniciado_em até finalizado_em. Se faltar timestamp
+    // (chamados antigos), cai para o previsto (inicio→fim) como aproximação.
+    const durMs = (a) => {
+      const ini = a.iniciado_em ? new Date(a.iniciado_em) : new Date(a.inicio);
+      const fim = a.finalizado_em ? new Date(a.finalizado_em) : new Date(a.fim);
+      const d = fim - ini;
+      return d > 0 ? d : 0;
+    };
+    const fmtH = (ms) => {
+      const totalMin = Math.round(ms / 60000);
+      const h = Math.floor(totalMin / 60), m = totalMin % 60;
+      return h > 0 ? `${h}h${m > 0 ? " " + m + "min" : ""}` : `${m}min`;
+    };
+
+    const totalMs = ags.reduce((s, a) => s + durMs(a), 0);
+
+    resumoEl.innerHTML = `
+      <div class="dash-metrica">
+        <div class="dm-label">⏱️ Horas trabalhadas</div>
+        <div class="dm-valor" style="color:#378add">${fmtH(totalMs)}</div>
+      </div>
+      <div class="dash-metrica">
+        <div class="dm-label">🏆 Serviços realizados</div>
+        <div class="dm-valor" style="color:#4caf6e">${ags.length}</div>
+      </div>
+      <div class="dash-metrica">
+        <div class="dm-label">👥 Clientes atendidos</div>
+        <div class="dm-valor">${new Set(ags.map(a => (a.nome_cliente || "").toLowerCase())).size}</div>
+      </div>`;
+
+    // Agrupa por cliente
+    const porCliente = {};
+    ags.forEach(a => {
+      const nome = a.nome_cliente || "—";
+      if (!porCliente[nome]) porCliente[nome] = { ms: 0, n: 0 };
+      porCliente[nome].ms += durMs(a);
+      porCliente[nome].n  += 1;
+    });
+    const linhas = Object.entries(porCliente).sort((a, b) => b[1].ms - a[1].ms);
+
+    listaEl.innerHTML = linhas.length === 0
+      ? '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhum serviço concluído ou encerrado ainda.</p>'
+      : `<div style="font-size:12px;color:rgba(232,223,192,0.5);font-family:Cinzel,serif;margin-bottom:6px">Detalhe por cliente</div>` +
+        linhas.map(([nome, v]) => `
+          <div class="dash-rank-row">
+            <span class="dash-rank-nome" style="min-width:160px">${nome}</span>
+            <span class="dash-rank-qtd" style="min-width:60px">${v.n} serv.</span>
+            <span style="color:#378add;font-weight:600;min-width:90px;text-align:right">${fmtH(v.ms)}</span>
+          </div>`).join("");
+
+  } catch (e) {
+    console.error("Erro ao carregar produção:", e);
+    listaEl.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Não foi possível carregar a produção.</p>';
+  }
 }
 
 async function carregarMeusAgendamentos(status = "pendente") {
