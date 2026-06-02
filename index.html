@@ -7,6 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -510,15 +511,35 @@
     </div>
     <div id="dashboardContent" style="max-width:1100px;margin:0 auto 40px;padding:0 24px">
       <div id="dashMetricas" class="dash-grid"></div>
+
+      <!-- Gráficos -->
       <div class="dash-cols">
         <div class="admin-card">
-          <h3>🏆 Top Serviceiros</h3>
+          <h3>📊 Distribuição de status</h3>
+          <div style="position:relative;height:260px"><canvas id="dashChartStatus"></canvas></div>
+        </div>
+        <div class="admin-card">
+          <h3>⚔️ Vocações mais procuradas</h3>
+          <div id="dashVocacoes"></div>
+        </div>
+      </div>
+
+      <!-- Rankings de serviceiros lado a lado -->
+      <div class="dash-cols">
+        <div class="admin-card">
+          <h3>🏆 Top por serviços</h3>
           <div id="dashTopServiceiros"></div>
         </div>
         <div class="admin-card">
-          <h3>⭐ Avaliações Recentes</h3>
-          <div id="dashAvaliacoes"></div>
+          <h3>⭐ Top por nota média</h3>
+          <div id="dashTopNotas"></div>
         </div>
+      </div>
+
+      <!-- Avaliações recentes -->
+      <div class="admin-card" style="margin-top:18px">
+        <h3>⭐ Avaliações Recentes</h3>
+        <div id="dashAvaliacoes"></div>
       </div>
     </div>
   </section>
