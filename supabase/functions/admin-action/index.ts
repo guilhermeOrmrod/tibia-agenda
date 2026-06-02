@@ -23,6 +23,39 @@ Deno.serve(async (req) => {
     // Token interno do sistema (para marcar convites como usados)
     const tokenSistema = adminToken === 'SISTEMA_INTERNO';
 
+    // ── Validação pública de convite (usado no cadastro, antes do login) ──
+    // Recebe um código e devolve apenas { valido, role } — sem expor a lista de convites.
+    if (acao === 'validar_convite') {
+      const codigo = (dados?.codigo || '').trim()
+      if (!codigo) {
+        return new Response(JSON.stringify({ valido: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const { data: conv } = await serviceClient
+        .from('convites')
+        .select('role, usado')
+        .eq('codigo', codigo)
+        .eq('usado', false)
+        .maybeSingle()
+      if (!conv) {
+        return new Response(JSON.stringify({ valido: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify({ valido: true, role: conv.role || 'cliente' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // ── Marca um convite como usado (por código) ──
+    if (acao === 'marcar_convite_usado') {
+      const codigo = (dados?.codigo || '').trim()
+      if (codigo) {
+        await serviceClient.from('convites').update({ usado: true }).eq('codigo', codigo)
+      }
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+
     // ── Modo serviceiro: atua apenas nos próprios chamados ──
     // Disparado por acao 'serviceiro_update_ag'. Autentica pelo JWT do usuário
     // (header x-user-jwt) e só permite mudar status/obs do agendamento se o

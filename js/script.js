@@ -573,12 +573,26 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
   if (!/^[a-zA-ZÀ-ÿ ]+$/.test(nick)) { erroEl.textContent = "Nick inválido — só letras e espaços."; return; }
   if (!convite) { erroEl.textContent = "Informe o código de convite."; return; }
 
-  // Valida código e detecta role automaticamente
-  const conviteRows = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}&usado=eq.false`);
-  if (conviteRows.length === 0) {
-    erroEl.textContent = "Código de convite inválido ou já usado."; return;
+  // Valida código via Edge Function (não expõe a lista de convites)
+  let roleDetectada = "cliente";
+  try {
+    const vres = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPA_KEY,
+        "Authorization": "Bearer " + SUPA_KEY
+      },
+      body: JSON.stringify({ acao: "validar_convite", dados: { codigo: convite } })
+    });
+    const vdata = await vres.json();
+    if (!vdata.valido) {
+      erroEl.textContent = "Código de convite inválido ou já usado."; return;
+    }
+    roleDetectada = vdata.role || "cliente";
+  } catch (e) {
+    erroEl.textContent = "Erro ao validar o convite. Tente novamente."; return;
   }
-  const roleDetectada = conviteRows[0].role || "cliente";
 
   const { data, error } = await _supa.auth.signUp({
     email, password: senha,
@@ -601,26 +615,17 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
     return;
   }
 
-  // Marca convite como usado via Edge Function (RLS bloqueia anon de fazer UPDATE)
+  // Marca convite como usado via Edge Function (não precisa ler a lista)
   try {
-    const conviteRow = await supaGet("convites", `codigo=eq.${encodeURIComponent(convite)}`);
-    if (conviteRow[0]) {
-      await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPA_KEY,
-          "Authorization": "Bearer " + SUPA_KEY,
-          "x-admin-token": "SISTEMA_INTERNO"
-        },
-        body: JSON.stringify({
-          acao: "update",
-          tabela: "convites",
-          id: conviteRow[0].id,
-          dados: { usado: true }
-        })
-      });
-    }
+    await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPA_KEY,
+        "Authorization": "Bearer " + SUPA_KEY
+      },
+      body: JSON.stringify({ acao: "marcar_convite_usado", dados: { codigo: convite } })
+    });
   } catch(e) { console.warn("Erro ao marcar convite como usado:", e); }
 
   document.getElementById("modalAuth").style.display = "none";
@@ -632,21 +637,32 @@ document.getElementById("btnCadastro").addEventListener("click", async () => {
 });
 
 // ── Preview do tipo ao digitar o código ──
-document.getElementById("cadConvite")?.addEventListener("input", async (e) => {
+let _conviteTipoTimer = null;
+document.getElementById("cadConvite")?.addEventListener("input", (e) => {
   const codigo  = e.target.value.trim().toUpperCase();
   const tipoEl  = document.getElementById("cadConviteTipo");
   if (!tipoEl) return;
   if (codigo.length < 4) { tipoEl.textContent = ""; return; }
 
-  const rows = await supaGet("convites", `codigo=eq.${encodeURIComponent(codigo)}&usado=eq.false`);
-  if (rows.length === 0) {
-    tipoEl.textContent = "❌ Código inválido ou já usado";
-    tipoEl.style.color = "#e05a3a";
-  } else {
-    const role = rows[0].role || "cliente";
-    tipoEl.textContent = role === "serviceiro" ? "✅ Código de Serviceiro" : "✅ Código de Cliente";
-    tipoEl.style.color = role === "serviceiro" ? "#a855f7" : "#4caf6e";
-  }
+  clearTimeout(_conviteTipoTimer);
+  _conviteTipoTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY },
+        body: JSON.stringify({ acao: "validar_convite", dados: { codigo } })
+      });
+      const data = await res.json();
+      if (!data.valido) {
+        tipoEl.textContent = "❌ Código inválido ou já usado";
+        tipoEl.style.color = "#e05a3a";
+      } else {
+        const role = data.role || "cliente";
+        tipoEl.textContent = role === "serviceiro" ? "✅ Código de Serviceiro" : "✅ Código de Cliente";
+        tipoEl.style.color = role === "serviceiro" ? "#a855f7" : "#4caf6e";
+      }
+    } catch (err) { tipoEl.textContent = ""; }
+  }, 500);
 });
 
 // ── Esqueceu a senha ──
