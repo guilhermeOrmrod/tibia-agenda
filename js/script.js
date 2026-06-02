@@ -934,15 +934,43 @@ async function renderizarPagamentos() {
   }
 
   try {
-    const pags      = await supaGet("pagamentos", "order=criado_em.desc");
+    // Ajusta subtítulo e botão conforme o papel
+    const subtitulo = document.getElementById("pgSubtitulo");
+    const btnNovo   = document.getElementById("btnNovoPagamento");
+    if (subtitulo) {
+      if (tipoUsuario === "admin")           subtitulo.textContent = "Todos os pagamentos da guild.";
+      else if (tipoUsuario === "serviceiro") subtitulo.textContent = "Pagamentos dos seus chamados.";
+      else if (tipoUsuario === "cliente")    subtitulo.textContent = "Seus comprovantes enviados.";
+      else                                   subtitulo.textContent = "";
+    }
+    // Serviceiro só consulta (não registra pagamento)
+    if (btnNovo) btnNovo.style.display = (tipoUsuario === "serviceiro") ? "none" : "";
+
+    const todosPags = await supaGet("pagamentos", "order=criado_em.desc");
+
+    // Filtra por papel:
+    // - admin: vê tudo
+    // - serviceiro: vê pagamentos dos chamados dele (campo serviceiro)
+    // - cliente: vê apenas os próprios pagamentos (campo nome = seu nick)
+    let pags = todosPags;
+    if (tipoUsuario === "serviceiro") {
+      const nomeServ = perfilAtual?.serviceiro_nome || perfilAtual?.nick || "";
+      pags = todosPags.filter(p => (p.serviceiro || "") === nomeServ);
+    } else if (tipoUsuario === "cliente") {
+      const meuNick = (perfilAtual?.nick || "").toLowerCase();
+      pags = todosPags.filter(p => (p.nome || "").toLowerCase() === meuNick);
+    }
+
     const analise   = pags.filter(p => p.status === "analise");
     const aprovados = pags.filter(p => p.status === "aprovado");
     const recusados = pags.filter(p => p.status === "recusado");
 
     function cardHTML(p) {
       const isAdmin = tipoUsuario === "admin";
-      // Somente admin pode ver o comprovante
-      const imgHTML = (isAdmin && p.comprovante_url)
+      const isServiceiro = tipoUsuario === "serviceiro";
+      // Admin vê todos os comprovantes; serviceiro vê os dos próprios chamados; cliente não vê.
+      const podeVerComprovante = isAdmin || isServiceiro;
+      const imgHTML = (podeVerComprovante && p.comprovante_url)
         ? `<a href="${p.comprovante_url}" target="_blank" class="pg-comprovante">🖼️ Ver comprovante</a>`
         : "";
       const acoes = (isAdmin && p.status === "analise") ? `
@@ -997,6 +1025,13 @@ async function alterarStatusPagamento(id, novoStatus) {
 
 document.getElementById("btnNovoPagamento").addEventListener("click", () => {
   const form = document.getElementById("formPagamento");
+  // Pré-preenche o nome com o nick do cliente (garante que o pagamento aparece pra ele depois)
+  const pgNomeEl = document.getElementById("pgNome");
+  if (pgNomeEl && perfilAtual?.nick && tipoUsuario === "cliente") {
+    pgNomeEl.value = perfilAtual.nick;
+    pgNomeEl.readOnly = true;
+    pgNomeEl.style.opacity = "0.7";
+  }
   form.style.display = form.style.display === "none" ? "block" : "none";
 });
 
