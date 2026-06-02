@@ -315,10 +315,11 @@
           <option value="">Selecione o serviceiro</option>
         </select>
         <input type="date"   id="pgData">
-        <input type="number" id="pgNumeroChamado" placeholder="Número do chamado (ex: 7)" min="1">
+        <input type="number" id="pgNumeroChamado" placeholder="Número do chamado (obrigatório, ex: 7)" min="1">
         <input type="number" id="pgValor"          placeholder="Valor (R$)" step="0.01">
         <input type="text"   id="pgObs"            placeholder="Observação (opcional)">
       </div>
+      <p style="margin:8px 0 0;font-size:12px;color:rgba(232,223,192,0.5)">💡 O pagamento só pode ser enviado para um chamado já aceito pelo serviceiro.</p>
       <div class="upload-area">
         <label for="pgArquivo">📎 Comprovante Pix (imagem ou PDF)</label>
         <input type="file" id="pgArquivo" accept="image/*,.pdf">

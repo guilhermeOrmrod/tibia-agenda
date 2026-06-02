@@ -1056,9 +1056,15 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
     return;
   }
 
-  // Risco 4: valida número de chamado se informado
+  // Número do chamado agora é obrigatório: o pagamento só é liberado para
+  // chamados que o serviceiro já aceitou (status a partir de "aprovado").
+  if (!numChamado) {
+    mostrarMensagem("⚠️ Informe o número do chamado. O pagamento só pode ser enviado para um chamado aceito pelo serviceiro.", "erro");
+    return;
+  }
+
   let agendamento_id = null;
-  if (numChamado) {
+  {
     const chamados = await supaGet("agendamentos",
       `numero_chamado=eq.${numChamado}&nome_cliente=ilike.${encodeURIComponent(nome)}`
     );
@@ -1068,6 +1074,18 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
     if (chamados[0].serviceiro !== serviceiro) {
       mostrarMensagem(`⚠️ O chamado #${numChamado} pertence ao serviceiro ${chamados[0].serviceiro}, não a ${serviceiro}.`, "erro"); return;
     }
+
+    // Regra de fluxo: só permite pagar a partir de "aprovado"
+    const statusOk = ["aprovado", "em_andamento", "concluido", "encerrado"];
+    const st = chamados[0].status;
+    if (!statusOk.includes(st)) {
+      const motivo = (st === "pendente")
+        ? "ainda não foi aceito pelo serviceiro"
+        : `está com status "${STATUS_LABELS[st] || st}"`;
+      mostrarMensagem(`⚠️ O chamado #${numChamado} ${motivo}. O pagamento só pode ser enviado após o serviceiro aceitar o serviço.`, "erro");
+      return;
+    }
+
     agendamento_id = chamados[0].id;
   }
 
