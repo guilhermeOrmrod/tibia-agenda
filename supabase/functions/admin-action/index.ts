@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
       // Confirma que o agendamento pertence a este serviceiro
       const { data: ag } = await serviceClient
-        .from('agendamentos').select('serviceiro, status').eq('id', id).single()
+        .from('agendamentos').select('serviceiro, status, inicio, fim').eq('id', id).single()
       if (!ag || ag.serviceiro !== nomeServ) {
         return new Response(JSON.stringify({ error: 'Este chamado não é seu' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -69,6 +69,18 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Status não permitido' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
+
+      // Trava de horário: iniciar só a partir do início; concluir só após o fim.
+      const agora = new Date()
+      if (novoStatus === 'em_andamento' && ag.inicio && agora < new Date(ag.inicio)) {
+        return new Response(JSON.stringify({ error: 'Ainda não chegou o horário de início deste serviço.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      if (novoStatus === 'concluido' && ag.fim && agora < new Date(ag.fim)) {
+        return new Response(JSON.stringify({ error: 'O serviço só pode ser concluído após o horário de término. Use "Encerrar" para terminar antes.' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
       const patch: Record<string, unknown> = { status: novoStatus }
       if (typeof dados?.obs_conclusao === 'string') patch.obs_conclusao = dados.obs_conclusao
 

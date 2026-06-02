@@ -1863,7 +1863,15 @@ async function carregarMeusAgendamentos(status = "pendente") {
   });
   container.querySelectorAll("[data-ag-concluir]").forEach(btn => {
     const ag = ags.find(a => a.id === btn.dataset.agConcluir);
-    btn.addEventListener("click", () => concluirAgendamento(ag));
+    btn.addEventListener("click", () => {
+      const agora = new Date(), fim = new Date(ag.fim);
+      if (agora < fim) {
+        const diff = Math.ceil((fim-agora)/60000);
+        mostrarMensagem(`⚠️ O serviço só pode ser concluído após o horário de término (faltam ${diff}min). Se precisar encerrar antes, use "Encerrar".`, "erro");
+        return;
+      }
+      concluirAgendamento(ag);
+    });
   });
   container.querySelectorAll("[data-ag-encerrar]").forEach(btn => {
     const ag = ags.find(a => a.id === btn.dataset.agEncerrar);
