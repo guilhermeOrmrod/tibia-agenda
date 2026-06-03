@@ -2774,3 +2774,38 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   transition: all 0.15s;
 }
 .btn-repetir:hover { background: rgba(201,168,76,0.22); border-color: var(--gold); }
+
+/* ── Botão "Ver horários" e modal de disponibilidade ── */
+.btn-ver-horarios {
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.3);
+  color: var(--gold);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: 'Cinzel', serif;
+  font-size: 11px;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: all 0.15s;
+}
+.btn-ver-horarios:hover { background: rgba(201,168,76,0.2); border-color: var(--gold); }
+.horario-livre {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(232,223,192,0.4);
+  font-style: italic;
+}
+.modal-horarios-lista { display: flex; flex-direction: column; gap: 8px; }
+.modal-horario-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: rgba(232,223,192,0.85);
+}
+.modal-horario-linha .mh-hora { color: var(--gold); font-weight: 600; font-family: 'Cinzel', serif; }

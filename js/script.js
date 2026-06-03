@@ -3015,31 +3015,63 @@ function renderizarHorariosCards() {
       .sort((a,b) => DIAS_ORDEM.indexOf(a.dia_semana) - DIAS_ORDEM.indexOf(b.dia_semana));
 
     if (horarios.length === 0) {
-      span.innerHTML = "";
+      span.innerHTML = '<span class="horario-livre">🕐 Sem horário fixo — consulte</span>';
       return;
     }
-
-    // Agrupa dias consecutivos com mesmo horário
-    const grupos = [];
-    horarios.forEach(h => {
-      const ultimo = grupos[grupos.length - 1];
-      if (ultimo && ultimo.inicio === h.hora_inicio && ultimo.fim === h.hora_fim &&
-          DIAS_ORDEM.indexOf(h.dia_semana) === DIAS_ORDEM.indexOf(ultimo.ultimoDia) + 1) {
-        ultimo.ultimoDia = h.dia_semana;
-      } else {
-        grupos.push({ primeiroDia: h.dia_semana, ultimoDia: h.dia_semana, inicio: h.hora_inicio, fim: h.hora_fim });
-      }
-    });
-
-    const linhas = grupos.map(g => {
-      const dia = g.primeiroDia === g.ultimoDia
-        ? g.primeiroDia
-        : `${g.primeiroDia.slice(0,3)}–${g.ultimoDia.slice(0,3)}`;
-      return `<span class="horario-tag">${dia} ${g.inicio.slice(0,5)}–${g.fim.slice(0,5)}</span>`;
-    });
-
-    span.innerHTML = `<div class="horarios-disponiveis">${linhas.join("")}</div>`;
+    // Botão compacto que abre o modal com os horários detalhados
+    span.innerHTML = `<button class="btn-ver-horarios" data-serv-horarios="${nome}">🕐 Ver horários (${horarios.length})</button>`;
   });
+
+  // Liga os botões ao modal
+  document.querySelectorAll("[data-serv-horarios]").forEach(btn => {
+    btn.addEventListener("click", () => abrirModalHorarios(btn.dataset.servHorarios));
+  });
+}
+
+// Agrupa dias consecutivos com mesmo horário (reuso no modal)
+function agruparHorarios(nome) {
+  const horarios = horariosCache
+    .filter(h => h.serviceiro === nome)
+    .sort((a,b) => DIAS_ORDEM.indexOf(a.dia_semana) - DIAS_ORDEM.indexOf(b.dia_semana));
+  const grupos = [];
+  horarios.forEach(h => {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.inicio === h.hora_inicio && ultimo.fim === h.hora_fim &&
+        DIAS_ORDEM.indexOf(h.dia_semana) === DIAS_ORDEM.indexOf(ultimo.ultimoDia) + 1) {
+      ultimo.ultimoDia = h.dia_semana;
+    } else {
+      grupos.push({ primeiroDia: h.dia_semana, ultimoDia: h.dia_semana, inicio: h.hora_inicio, fim: h.hora_fim });
+    }
+  });
+  return grupos;
+}
+
+function abrirModalHorarios(nome) {
+  const antigo = document.getElementById("modalHorarios");
+  if (antigo) antigo.remove();
+
+  const grupos = agruparHorarios(nome);
+  const linhas = grupos.length === 0
+    ? '<p style="color:rgba(232,223,192,0.5)">Sem horário fixo cadastrado. Consulte o serviceiro.</p>'
+    : grupos.map(g => {
+        const dia = g.primeiroDia === g.ultimoDia ? g.primeiroDia : `${g.primeiroDia} a ${g.ultimoDia}`;
+        return `<div class="modal-horario-linha"><span>📅 ${dia}</span><span class="mh-hora">${g.inicio.slice(0,5)} – ${g.fim.slice(0,5)}</span></div>`;
+      }).join("");
+
+  const modal = document.createElement("div");
+  modal.id = "modalHorarios";
+  modal.className = "modal";
+  modal.style.display = "flex";
+  modal.innerHTML = `
+    <div class="modal-conteudo" style="max-width:380px">
+      <h3 style="font-family:Cinzel,serif;color:var(--gold);margin:0 0 4px">🕐 Disponibilidade</h3>
+      <p style="font-size:13px;color:rgba(232,223,192,0.6);margin:0 0 16px">⚔️ ${nome}</p>
+      <div class="modal-horarios-lista">${linhas}</div>
+      <button id="fecharModalHorarios" class="btn-gold" style="width:100%;margin-top:16px">Fechar</button>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById("fecharModalHorarios").onclick = () => modal.remove();
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 }
 
 function atualizarSelectHorariosAdmin() {
