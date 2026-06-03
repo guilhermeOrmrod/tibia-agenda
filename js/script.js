@@ -1895,17 +1895,24 @@ async function carregarUsuarios(filtroRole = "pendente") {
     // SELECT do próprio perfil, então o REST direto com o JWT do admin não traz
     // os outros usuários. A Edge Function roda com service_role e enxerga todos.
     const filtros = [];
+    let posFiltro = null; // filtro extra aplicado no cliente após buscar
     if (filtroRole === "pendente") {
       filtros.push({ coluna: "aprovado", op: "eq", valor: false });
+    } else if (filtroRole === "serviceiro") {
+      // Aba "Serviceiros": traz serviceiros puros E admins vinculados a um serviceiro.
+      // Busca todos os aprovados e filtra no cliente (a RLS/edge não faz OR composto).
+      filtros.push({ coluna: "aprovado", op: "eq", valor: true });
+      posFiltro = (p) => p.role === "serviceiro" || (p.role === "admin" && p.serviceiro_nome);
     } else if (filtroRole !== "todos") {
       filtros.push({ coluna: "role", op: "eq", valor: filtroRole });
       filtros.push({ coluna: "aprovado", op: "eq", valor: true });
     }
 
-    const perfis = await adminAction("select", "perfis", null, null, {
+    let perfis = await adminAction("select", "perfis", null, null, {
       filtros,
       ordem: { coluna: "criado_em", ascending: false }
     });
+    if (posFiltro && Array.isArray(perfis)) perfis = perfis.filter(posFiltro);
     const error = null;
 
     if (error) throw error;
@@ -1942,9 +1949,9 @@ async function carregarUsuarios(filtroRole = "pendente") {
             <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-remover-usr="${p.id}">🗑️</button>
           </div>` : '<span style="font-size:11px;color:rgba(232,223,192,0.3)">Sua conta</span>'}
         </div>
-        ${p.role === "serviceiro" ? `
+        ${(p.role === "serviceiro" || p.role === "admin") ? `
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,168,76,0.12);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:11px;color:rgba(232,223,192,0.55);font-family:Cinzel,serif">🔗 Vincular ao serviceiro:</span>
+          <span style="font-size:11px;color:rgba(232,223,192,0.55);font-family:Cinzel,serif">🔗 Vincular ao serviceiro:${p.role === "admin" ? ' <span style="opacity:0.6">(admin que também faz serviços)</span>' : ''}</span>
           <select class="vinculo-serv-select" data-usr-id="${p.id}" style="font-size:11px;padding:4px 8px;width:auto;margin:0;font-family:Cinzel,serif;background:rgba(255,255,255,0.06);color:#e8dfc0;border:1px solid rgba(201,168,76,0.3);border-radius:5px">
             <option value="">— não vinculado —</option>
             ${listarTodosServiceiros().map(nome =>
