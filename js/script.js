@@ -476,6 +476,8 @@ async function atualizarUI() {
   const logado       = tipoUsuario !== null;
   const isAdmin      = tipoUsuario === "admin";
   const isServiceiro = tipoUsuario === "serviceiro";
+  // "Faz serviços" = serviceiro puro OU admin vinculado a um nome de serviceiro
+  const fazServicos  = isServiceiro || (isAdmin && !!perfilAtual?.serviceiro_nome);
   const nick         = perfilAtual?.nick || "";
 
   // Header
@@ -484,8 +486,9 @@ async function atualizarUI() {
   document.getElementById("usuarioLogado").textContent =
     isAdmin ? `⚔️ ${nick}` : isServiceiro ? `🗡️ ${nick}` : `👤 ${nick}`;
 
-  // Botões de admin
+  // Botões de navegação por papel
   document.getElementById("btnNavAdmin").style.display       = isAdmin ? "inline-block" : "none";
+  document.getElementById("btnNavServicos").style.display    = fazServicos ? "inline-block" : "none";
   document.getElementById("btnEditarContatos").style.display = isAdmin ? "inline-block" : "none";
 
   // Formulário de agendamento — clientes e admin podem agendar
@@ -503,7 +506,8 @@ async function atualizarUI() {
     carregarPainelAdmin();
     expirarPendentesVencidos();
   }
-  if (tipoUsuario === "serviceiro") carregarPainelServiceiro();
+  // Carrega o painel de serviços para serviceiro puro OU admin-serviceiro
+  if (fazServicos) carregarPainelServiceiro();
 
   // Aplica permissões para cliente e serviceiro
   if (tipoUsuario === "cliente" || tipoUsuario === "serviceiro") {
@@ -1954,15 +1958,13 @@ async function gerarCodigoConvite(role = "cliente") {
 document.getElementById("btnGerarConviteCliente")?.addEventListener("click", () => gerarCodigoConvite("cliente"));
 document.getElementById("btnGerarConviteServiceiro")?.addEventListener("click", () => gerarCodigoConvite("serviceiro"));
 
-// ── FIX 7: Painel do Serviceiro ──
+// ── Painel do Serviceiro (serviceiro puro ou admin-serviceiro) ──
 async function carregarPainelServiceiro() {
-  if (tipoUsuario !== "serviceiro" || !perfilAtual) return;
+  if (!perfilAtual) return;
+  const fazServicos = tipoUsuario === "serviceiro" || (tipoUsuario === "admin" && perfilAtual.serviceiro_nome);
+  if (!fazServicos) return;
 
-  // Mostra aba exclusiva do serviceiro
-  const navAdmin = document.getElementById("btnNavAdmin");
-  navAdmin.style.display = "inline-block";
-  navAdmin.textContent = "⚔️ Meus Serviços";
-  navAdmin.dataset.tab = "serviceiro-painel";
+  // O botão "⚔️ Meus Serviços" (btnNavServicos) já é controlado em atualizarUI.
 
   // Inicializa abas do painel serviceiro
   document.querySelectorAll(".srv-ag-tab").forEach(tab => {
