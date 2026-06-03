@@ -637,6 +637,37 @@
         <div id="srvResumoHoras" class="dash-grid" style="margin-bottom:16px"></div>
         <div id="srvProducaoClientes"></div>
       </div>
+
+      <!-- Meus Horários: disponibilidade do próprio serviceiro -->
+      <div class="admin-card" style="margin-top:18px">
+        <h3>🕐 Meus Horários de Disponibilidade</h3>
+        <p style="font-size:12px;color:rgba(232,223,192,0.5);margin:-4px 0 14px">Defina os dias e horários em que você está disponível para serviços. Os clientes só conseguem agendar dentro da sua disponibilidade.</p>
+        <div class="admin-input-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1 1 160px">
+            <label style="font-size:11px;color:rgba(232,223,192,0.6);font-family:Cinzel,serif;display:block;margin-bottom:4px">Dia da semana</label>
+            <select id="srvHorarioDia" style="width:100%">
+              <option value="Todos os dias">Todos os dias</option>
+              <option value="Domingo">Domingo</option>
+              <option value="Segunda">Segunda</option>
+              <option value="Terça">Terça</option>
+              <option value="Quarta">Quarta</option>
+              <option value="Quinta">Quinta</option>
+              <option value="Sexta">Sexta</option>
+              <option value="Sábado">Sábado</option>
+            </select>
+          </div>
+          <div style="flex:0 1 120px">
+            <label style="font-size:11px;color:rgba(232,223,192,0.6);font-family:Cinzel,serif;display:block;margin-bottom:4px">Hora início</label>
+            <input type="time" id="srvHorarioInicio" style="width:100%">
+          </div>
+          <div style="flex:0 1 120px">
+            <label style="font-size:11px;color:rgba(232,223,192,0.6);font-family:Cinzel,serif;display:block;margin-bottom:4px">Hora fim</label>
+            <input type="time" id="srvHorarioFim" style="width:100%">
+          </div>
+          <button class="btn-admin-salvar" id="btnSrvAddHorario" style="flex:0 0 auto">+ Adicionar</button>
+        </div>
+        <div id="srvListaHorarios" style="margin-top:14px"></div>
+      </div>
     </div>
   </section>
 

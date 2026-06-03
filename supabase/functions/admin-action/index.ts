@@ -177,6 +177,63 @@ Deno.serve(async (req) => {
     }
 
 
+    // ── Modo serviceiro: gerencia os próprios horários de disponibilidade ──
+    if (acao === 'serviceiro_horario') {
+      const jwt = req.headers.get('x-user-jwt')
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: 'Sem autenticação' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: `Bearer ${jwt}` } } }
+      )
+      const { data: userData, error: userErr } = await authClient.auth.getUser()
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Sessão inválida' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const { data: perfil } = await serviceClient
+        .from('perfis').select('role, serviceiro_nome, nick').eq('id', userData.user.id).single()
+      // serviceiro puro OU admin com vínculo
+      const podeServ = perfil && (perfil.role === 'serviceiro' || (perfil.role === 'admin' && perfil.serviceiro_nome))
+      if (!podeServ) {
+        return new Response(JSON.stringify({ error: 'Sem permissão' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const nomeServ = perfil.serviceiro_nome || perfil.nick
+      const sub = dados?.sub  // 'insert' | 'delete'
+
+      if (sub === 'insert') {
+        const { data, error } = await serviceClient.from('horarios_serviceiros').insert({
+          serviceiro:  nomeServ,  // forçado: nunca aceita nome de outro
+          dia_semana:  dados.dia_semana,
+          hora_inicio: dados.hora_inicio,
+          hora_fim:    dados.hora_fim,
+          ativo: true
+        }).select()
+        if (error) throw error
+        return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      if (sub === 'delete') {
+        // Só deleta se o horário for do próprio serviceiro
+        const { data: h } = await serviceClient
+          .from('horarios_serviceiros').select('serviceiro').eq('id', dados.id).single()
+        if (!h || h.serviceiro !== nomeServ) {
+          return new Response(JSON.stringify({ error: 'Este horário não é seu' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        const { error } = await serviceClient.from('horarios_serviceiros').delete().eq('id', dados.id)
+        if (error) throw error
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      return new Response(JSON.stringify({ error: 'Sub-ação inválida' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     // Valida que quem chama é admin — pelo JWT (exceto ações do sistema)
     if (!tokenSistema) {
       const jwt = req.headers.get('x-user-jwt')

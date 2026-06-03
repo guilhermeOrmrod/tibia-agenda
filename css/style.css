@@ -2727,3 +2727,17 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   font-size: 13px;
 }
 .srv-filtros #srvLimparFiltros:hover { background: rgba(224,90,58,0.2); }
+
+/* ── Item de horário do serviceiro ── */
+.srv-horario-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: rgba(232,223,192,0.8);
+}

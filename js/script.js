@@ -1991,6 +1991,63 @@ async function carregarPainelServiceiro() {
     if (fOrd) fOrd.value = "chamado_desc";
     renderMeusAgendamentos();
   });
+
+  carregarMeusHorarios();
+  document.getElementById("btnSrvAddHorario")?.addEventListener("click", adicionarMeuHorario);
+}
+
+// ── Meus Horários (serviceiro gerencia a própria disponibilidade) ──
+async function carregarMeusHorarios() {
+  if (!perfilAtual) return;
+  const nomeServ = perfilAtual.serviceiro_nome || perfilAtual.nick;
+  const lista = document.getElementById("srvListaHorarios");
+  if (!lista) return;
+  try {
+    const horarios = await supaGet("horarios_serviceiros",
+      `serviceiro=eq.${encodeURIComponent(nomeServ)}&ativo=eq.true&order=dia_semana.asc`);
+    if (!horarios.length) {
+      lista.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Nenhum horário cadastrado. Adicione sua disponibilidade acima.</p>';
+      return;
+    }
+    lista.innerHTML = horarios.map(h => `
+      <div class="srv-horario-item">
+        <span>📅 <b>${h.dia_semana}</b> · ${h.hora_inicio.slice(0,5)} às ${h.hora_fim.slice(0,5)}</span>
+        <button class="btn-recusar" style="width:auto;padding:4px 10px;font-size:11px" data-del-horario="${h.id}">🗑️</button>
+      </div>`).join("");
+    lista.querySelectorAll("[data-del-horario]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Remover este horário?")) return;
+        try {
+          await supaAction("serviceiro_horario", "horarios_serviceiros", null, { sub: "delete", id: btn.dataset.delHorario });
+          mostrarMensagem("🗑️ Horário removido.", "sucesso");
+          carregarMeusHorarios();
+        } catch (e) { mostrarMensagem(`❌ Erro: ${e.message}`, "erro"); }
+      });
+    });
+  } catch (e) {
+    console.error("Erro ao carregar horários:", e);
+  }
+}
+
+async function adicionarMeuHorario() {
+  const dia    = document.getElementById("srvHorarioDia").value;
+  const inicio = document.getElementById("srvHorarioInicio").value;
+  const fim    = document.getElementById("srvHorarioFim").value;
+
+  if (!dia || !inicio || !fim) { mostrarMensagem("⚠️ Preencha dia e horários.", "erro"); return; }
+  if (fim <= inicio) { mostrarMensagem("⚠️ Hora fim deve ser após a hora início.", "erro"); return; }
+
+  try {
+    await supaAction("serviceiro_horario", "horarios_serviceiros", null, {
+      sub: "insert", dia_semana: dia, hora_inicio: inicio, hora_fim: fim
+    });
+    mostrarMensagem("✅ Horário adicionado!", "sucesso");
+    document.getElementById("srvHorarioInicio").value = "";
+    document.getElementById("srvHorarioFim").value = "";
+    carregarMeusHorarios();
+  } catch (e) {
+    mostrarMensagem(`❌ Erro: ${e.message}`, "erro");
+  }
 }
 
 // ── Minha Produção: horas trabalhadas (reais) por cliente ──
