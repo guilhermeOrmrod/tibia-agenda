@@ -40,7 +40,21 @@ async function supaGet(tabela, query = "") {
   return res.json();
 }
 
+// Anti-flood: impede disparar a mesma operação de escrita em rajada.
+// Guarda o instante da última escrita por "chave" (tabela) e exige um intervalo mínimo.
+const _ultimaEscrita = {};
+function checarThrottle(chave, msMinimo = 3000) {
+  const agora = Date.now();
+  const ultimo = _ultimaEscrita[chave] || 0;
+  if (agora - ultimo < msMinimo) {
+    const faltam = Math.ceil((msMinimo - (agora - ultimo)) / 1000);
+    throw new Error(`Aguarde ${faltam}s antes de tentar novamente.`);
+  }
+  _ultimaEscrita[chave] = agora;
+}
+
 async function supaPost(tabela, body) {
+  checarThrottle("post_" + tabela, 3000); // no máx. 1 inserção a cada 3s por tabela
   const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
     method: "POST", headers: HEADERS, body: JSON.stringify(body)
   });
@@ -1320,6 +1334,14 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
   }
 
   mostrarMensagem("⏳ Enviando comprovante...", "sucesso");
+
+  // Validação anti-abuso: só imagem, máx 5MB
+  if (!arquivo.type.startsWith("image/")) {
+    mostrarMensagem("⚠️ O comprovante precisa ser uma imagem (jpg, png, webp).", "erro"); return;
+  }
+  if (arquivo.size > 5 * 1024 * 1024) {
+    mostrarMensagem("⚠️ Imagem muito grande (máximo 5MB).", "erro"); return;
+  }
 
   const ext  = arquivo.name.split(".").pop();
   const path = `${Date.now()}_${nome.replace(/[^a-zA-Z0-9]/g,"_")}.${ext}`;
