@@ -737,6 +737,68 @@ document.getElementById("formAgendamento")?.addEventListener("focusin", () => {
   }
 });
 
+// ── Sugere serviceiros alternativos disponíveis no mesmo horário ──
+async function acharServiceirosAlternativos(vocacao, excluir, inicio, fim) {
+  const fonte = Object.keys(cfgAtual.serviceiros || {}).length > 0 ? cfgAtual.serviceiros : SERVICEIROS;
+  const candidatos = (fonte[vocacao] || []).filter(n => n !== excluir);
+  if (candidatos.length === 0) return [];
+
+  const diasPT = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+  const diaSemana = diasPT[inicio.getDay()];
+  const iniMin = inicio.getHours() * 60 + inicio.getMinutes();
+  const fimMin = fim.getHours() * 60 + fim.getMinutes();
+
+  const disponiveis = [];
+  for (const nome of candidatos) {
+    const horarios = horariosCache.filter(h => h.serviceiro === nome && h.ativo &&
+      (h.dia_semana === diaSemana || h.dia_semana === "Todos os dias"));
+    let cobre = horarios.length === 0; // sem horários = sem restrição
+    if (!cobre) {
+      cobre = horarios.some(h => {
+        const [hI,mI] = h.hora_inicio.split(":").map(Number);
+        const [hF,mF] = h.hora_fim.split(":").map(Number);
+        return iniMin >= (hI*60+mI) && fimMin <= (hF*60+mF);
+      });
+    }
+    if (!cobre) continue;
+
+    const conflito = await supaGet("agendamentos",
+      `serviceiro=eq.${encodeURIComponent(nome)}&inicio=lte.${fim.toISOString()}&fim=gte.${inicio.toISOString()}&status=in.(pendente,aprovado,em_andamento)`
+    );
+    if (conflito.length === 0) disponiveis.push(nome);
+  }
+  return disponiveis;
+}
+
+function mostrarAlternativas(alternativas, vocacao) {
+  const box = document.getElementById("alternativasBox");
+  if (!box) return;
+  if (!alternativas.length) {
+    box.style.display = "block";
+    box.innerHTML = `<p style="margin:0">😕 Nenhum outro ${vocacao} disponível neste horário. Tente outro dia/horário ou veja a aba Serviceiros.</p>`;
+    return;
+  }
+  box.style.display = "block";
+  box.innerHTML = `
+    <p style="margin:0 0 8px"><b>✨ Disponíveis neste horário:</b> toque para selecionar</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${alternativas.map(n => `<button type="button" class="btn-alternativa" data-serv="${n}">⚔️ ${n}</button>`).join("")}
+    </div>`;
+  box.querySelectorAll(".btn-alternativa").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sel = document.getElementById("serviceiro");
+      if (![...sel.options].some(o => o.value === btn.dataset.serv)) {
+        const opt = document.createElement("option");
+        opt.value = btn.dataset.serv; opt.textContent = btn.dataset.serv;
+        sel.appendChild(opt);
+      }
+      sel.value = btn.dataset.serv;
+      box.style.display = "none";
+      mostrarMensagem(`✅ Serviceiro alterado para ${btn.dataset.serv}. Clique em Agendar novamente.`, "sucesso");
+    });
+  });
+}
+
 // ── Formulário de agendamento ─────────────
 document.getElementById("formAgendamento").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -805,9 +867,11 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
 
     if (horariosNoDia.length === 0) {
       mostrarMensagem(
-        `⚠️ ${serviceiro} não está disponível na ${diaSemana}. Veja os horários disponíveis na aba Serviceiros.`,
+        `⚠️ ${serviceiro} não está disponível na ${diaSemana}. Veja alternativas abaixo ou consulte a aba Serviceiros.`,
         "erro"
       );
+      const alt = await acharServiceirosAlternativos(vocacao, serviceiro, inicio, fim);
+      mostrarAlternativas(alt, vocacao);
       return;
     }
 
@@ -831,6 +895,8 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
         `⚠️ Horário fora do disponível para ${serviceiro} na ${diaSemana}. Disponível: ${horariosTexto}`,
         "erro"
       );
+      const alt = await acharServiceirosAlternativos(vocacao, serviceiro, inicio, fim);
+      mostrarAlternativas(alt, vocacao);
       return;
     }
   }
@@ -849,7 +915,10 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   );
   if (existentes.length > 0) {
     const status = existentes[0].status === "pendente" ? "aguardando aprovação" : "já agendado";
-    mostrarMensagem(`⚠️ ${serviceiro} já tem um serviço ${status} neste horário.`, "erro"); return;
+    mostrarMensagem(`⚠️ ${serviceiro} já tem um serviço ${status} neste horário. Veja quem está livre abaixo.`, "erro");
+    const alt = await acharServiceirosAlternativos(vocacao, serviceiro, inicio, fim);
+    mostrarAlternativas(alt, vocacao);
+    return;
   }
 
   // Gera número de chamado atômico via função do Supabase (evita race condition)
@@ -886,6 +955,8 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   // Mostra modal com o número do chamado
   mostrarModalChamado(numeroChamado);
   e.target.reset();
+  const altBox = document.getElementById("alternativasBox");
+  if (altBox) altBox.style.display = "none";
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   document.getElementById("huntCustom").style.display = "none";
   document.getElementById("huntCustom").value = "";

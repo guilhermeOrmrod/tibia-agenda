@@ -2741,3 +2741,21 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   font-size: 13px;
   color: rgba(232,223,192,0.8);
 }
+
+/* ── Botões de serviceiro alternativo ── */
+.btn-alternativa {
+  background: rgba(76,175,110,0.15);
+  border: 1px solid rgba(76,175,110,0.4);
+  color: #9fe1cb;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-alternativa:hover {
+  background: rgba(76,175,110,0.28);
+  border-color: #4caf6e;
+  color: #fff;
+}
