@@ -754,6 +754,19 @@ document.getElementById("formAgendamento")?.addEventListener("focusin", () => {
   }
 });
 
+// ── Banner global de modo evento (visível para todos) ──
+function aplicarAvisoEvento() {
+  const banner = document.getElementById("bannerEvento");
+  if (!banner) return;
+  if (cfgAtual.precos?.modo_evento) {
+    const ev = parseFloat(cfgAtual.precos?.evento || 0);
+    banner.innerHTML = `🎉 <b>Dia de evento ativo!</b> Todos os serviços estão com o valor de evento${ev ? `: ${fmtBRL(ev)}/hora` : ""}.`;
+    banner.style.display = "block";
+  } else {
+    banner.style.display = "none";
+  }
+}
+
 // ── Estimativa de valor ao vivo no formulário ──
 function atualizarEstimativa() {
   const box = document.getElementById("estimativaBox");
@@ -770,12 +783,19 @@ function atualizarEstimativa() {
 
   const precoNormal = parseFloat(cfgAtual.precos?.normal || 0);
   const precoEvento = parseFloat(cfgAtual.precos?.evento || 0);
-  const totalNormal = precoNormal * horas;
+  const eventoAtivo = !!cfgAtual.precos?.modo_evento;
+  const precoVigente = (eventoAtivo && precoEvento) ? precoEvento : precoNormal;
+  const totalVigente = precoVigente * horas;
 
   const hTxt = horas % 1 === 0 ? `${horas}h` : `${Math.floor(horas)}h${Math.round((horas%1)*60)}min`;
-  let html = `💰 <b>Estimativa:</b> ${hTxt} × ${fmtBRL(precoNormal)}/h = <b style="color:#c9a84c">${fmtBRL(totalNormal)}</b>`;
-  if (precoEvento && precoEvento !== precoNormal) {
-    html += `<br><span style="font-size:12px;color:rgba(232,223,192,0.55)">Em dia de evento: ${fmtBRL(precoEvento * horas)}</span>`;
+  let html;
+  if (eventoAtivo && precoEvento) {
+    html = `🎉 <b>Dia de evento!</b> ${hTxt} × ${fmtBRL(precoVigente)}/h = <b style="color:#e0a23a">${fmtBRL(totalVigente)}</b>`;
+  } else {
+    html = `💰 <b>Estimativa:</b> ${hTxt} × ${fmtBRL(precoVigente)}/h = <b style="color:#c9a84c">${fmtBRL(totalVigente)}</b>`;
+    if (precoEvento && precoEvento !== precoNormal) {
+      html += `<br><span style="font-size:12px;color:rgba(232,223,192,0.55)">Em dia de evento: ${fmtBRL(precoEvento * horas)}</span>`;
+    }
   }
   html += `<br><span style="font-size:11px;color:rgba(232,223,192,0.45)">Valor base estimado. O serviceiro confirma o total ao concluir.</span>`;
   box.innerHTML = html;
@@ -1374,10 +1394,12 @@ function fmtDuracao(ms) {
   return m > 0 ? `${h}h${m}min` : `${h}h`;
 }
 
-// Valor calculado: horas reais × preço/hora (normal ou evento, conforme o tipo).
+// Valor calculado: horas reais × preço/hora. Usa o preço de evento quando o
+// modo evento global está ativo; senão, o preço normal.
 function valorCalculado(ag) {
-  const precoHora = (ag.tipo === "evento")
-    ? parseFloat(cfgAtual.precos?.evento || 0)
+  const eventoAtivo = !!cfgAtual.precos?.modo_evento;
+  const precoHora = (eventoAtivo && cfgAtual.precos?.evento)
+    ? parseFloat(cfgAtual.precos.evento || 0)
     : parseFloat(cfgAtual.precos?.normal || 0);
   const horas = duracaoMs(ag) / 3600000;
   return precoHora * horas;
@@ -2773,6 +2795,8 @@ function renderizarPainelAdmin() {
   document.getElementById("cfgPrecoNormal").value = cfgAtual.precos?.normal || "";
   document.getElementById("cfgPrecoEvento").value = cfgAtual.precos?.evento || "";
   document.getElementById("cfgPrecoObs").value    = cfgAtual.precos?.obs    || "";
+  const chkEvento = document.getElementById("cfgModoEvento");
+  if (chkEvento) chkEvento.checked = !!cfgAtual.precos?.modo_evento;
 
   // Hunts
   renderizarTagsHunts();
@@ -2913,12 +2937,27 @@ document.getElementById("btnSalvarPrecos").addEventListener("click", async () =>
   const evento = parseFloat(document.getElementById("cfgPrecoEvento").value);
   const obs    = document.getElementById("cfgPrecoObs").value.trim();
   if (!normal || !evento) { mostrarMensagem("⚠️ Preencha os dois valores.", "erro"); return; }
-  cfgAtual.precos = { normal, evento, obs };
+  cfgAtual.precos = { normal, evento, obs, modo_evento: !!cfgAtual.precos?.modo_evento };
   await salvarConfig("precos", cfgAtual.precos);
   // Atualiza a aba de preços visualmente
   document.getElementById("precoNormal").textContent = `R$ ${normal.toFixed(2).replace(".",",")} / hora em dias normais`;
   document.getElementById("precoEvento").textContent = `R$ ${evento.toFixed(2).replace(".",",")} / hora em dias de evento`;
   mostrarMensagem("✅ Preços atualizados!", "sucesso");
+});
+
+// Liga/desliga o modo evento global (só admin)
+document.getElementById("cfgModoEvento")?.addEventListener("change", async (e) => {
+  const ativo = e.target.checked;
+  cfgAtual.precos = { ...(cfgAtual.precos || {}), modo_evento: ativo };
+  try {
+    await salvarConfig("precos", cfgAtual.precos);
+    aplicarAvisoEvento();
+    atualizarEstimativa();
+    mostrarMensagem(ativo ? "🎉 Modo evento ATIVADO! Todos os agendamentos usam o valor de evento." : "Modo evento desativado. Valores normais.", "sucesso");
+  } catch (err) {
+    e.target.checked = !ativo; // reverte visual em caso de erro
+    mostrarMensagem(`❌ Erro: ${err.message}`, "erro");
+  }
 });
 
 
@@ -3365,6 +3404,7 @@ async function expirarPendentesVencidos() {
       document.getElementById("precoEvento").textContent =
         `R$ ${parseFloat(cfgAtual.precos.evento).toFixed(2).replace(".",",")} / hora em dias de evento`;
     }
+    aplicarAvisoEvento();
   } catch(e) { console.warn("Erro ao carregar configs:", e); }
 
   // 2. Carrega horários e disponibilidade

@@ -57,6 +57,9 @@
 
   <div id="mensagem"></div>
 
+  <!-- Banner de modo evento global (controlado pelo admin) -->
+  <div id="bannerEvento" style="display:none;background:linear-gradient(90deg,rgba(224,162,58,0.25),rgba(201,168,76,0.15));border-bottom:1px solid rgba(224,162,58,0.5);color:#ffe9b0;text-align:center;padding:10px 16px;font-family:'Cinzel',serif;font-size:14px"></div>
+
   <!-- Banner da guild -->
   <div id="bannerGuild">
     <span class="banner-icon">⚔️</span>
@@ -464,6 +467,12 @@
           <div class="admin-field" style="grid-column: 1/-1">
             <label>Observação</label>
             <input type="text" id="cfgPrecoObs" placeholder="Ex: Valores podem ser combinados com o serviceiro.">
+          </div>
+          <div class="admin-field" style="grid-column: 1/-1">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:rgba(224,162,58,0.08);border:1px solid rgba(224,162,58,0.3);border-radius:8px">
+              <input type="checkbox" id="cfgModoEvento" style="width:auto;margin:0">
+              <span style="text-transform:none;letter-spacing:0">🎉 <b>Modo evento ativo</b> — quando ligado, todos os agendamentos passam a usar o valor de dia de evento, com aviso visível para todos.</span>
+            </label>
           </div>
         </div>
       </div>
