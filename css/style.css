@@ -2759,3 +2759,18 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   border-color: #4caf6e;
   color: #fff;
 }
+
+/* ── Botão repetir agendamento ── */
+.btn-repetir {
+  margin-top: 8px;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.35);
+  color: var(--gold);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-repetir:hover { background: rgba(201,168,76,0.22); border-color: var(--gold); }

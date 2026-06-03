@@ -52,19 +52,6 @@ async function supaPost(tabela, body) {
   return data;
 }
 
-async function supaPatch(tabela, id, body) {
-  const res = await fetch(`${SUPA_URL}/rest/v1/${tabela}?id=eq.${id}`, {
-    method: "PATCH", headers: HEADERS, body: JSON.stringify(body)
-  });
-  return res.json();
-}
-
-async function supaDelete(tabela, id) {
-  await fetch(`${SUPA_URL}/rest/v1/${tabela}?id=eq.${id}`, {
-    method: "DELETE", headers: HEADERS
-  });
-}
-
 // ── Ações privilegiadas via Edge Function (service_role) ──
 async function adminAction(acao, tabela, id = null, dados = null, extra = {}) {
   // Autentica pelo JWT do admin logado (a Edge Function valida o role).
@@ -391,7 +378,6 @@ async function carregarCalendario() {
 // SISTEMA DE AUTENTICAÇÃO — Supabase Auth
 // =========================================
 let tipoUsuario = null; // "admin" | "serviceiro" | "cliente" | null
-let SENHA_ADMIN_DIN = null; // mantido para compatibilidade com adminAction
 
 // ── Aplica sessão na UI ──
 async function aplicarSessao(session, event = '') {
@@ -468,7 +454,38 @@ async function aplicarSessao(session, event = '') {
   // Só mostra boas-vindas no login real, não no refresh
   if (event === "SIGNED_IN") {
     mostrarMensagem(`✅ Bem-vindo, ${perfilAtual.nick}!`, "sucesso");
+    if (tipoUsuario === "cliente") avisarStatusCliente();
+    if (tipoUsuario === "serviceiro" || (tipoUsuario === "admin" && perfilAtual.serviceiro_nome)) avisarPendentesServiceiro();
   }
+}
+
+// Avisa o cliente sobre chamados aceitos/em andamento/concluídos ao logar
+async function avisarStatusCliente() {
+  try {
+    const meus = await supaGet("agendamentos",
+      `nome_cliente=eq.${encodeURIComponent(perfilAtual.nick)}&status=in.(aprovado,em_andamento,concluido)&order=criado_em.desc`);
+    if (!meus.length) return;
+    const aprovados = meus.filter(a => a.status === "aprovado").length;
+    const andamento = meus.filter(a => a.status === "em_andamento").length;
+    const partes = [];
+    if (aprovados) partes.push(`${aprovados} aceito(s) ✅`);
+    if (andamento) partes.push(`${andamento} em andamento ⚔️`);
+    if (partes.length) {
+      setTimeout(() => mostrarMensagem(`📣 Você tem ${partes.join(" e ")}. Veja no Histórico.`, "sucesso"), 2500);
+    }
+  } catch(e) { console.warn("avisarStatusCliente:", e); }
+}
+
+// Avisa o serviceiro sobre chamados pendentes ao logar
+async function avisarPendentesServiceiro() {
+  try {
+    const nomeServ = perfilAtual.serviceiro_nome || perfilAtual.nick;
+    const pend = await supaGet("agendamentos",
+      `serviceiro=eq.${encodeURIComponent(nomeServ)}&status=eq.pendente`);
+    if (pend.length) {
+      setTimeout(() => mostrarMensagem(`🔔 Você tem ${pend.length} chamado(s) pendente(s) aguardando sua resposta.`, "sucesso"), 2500);
+    }
+  } catch(e) { console.warn("avisarPendentesServiceiro:", e); }
 }
 
 // ── Atualiza a interface conforme o papel ──
@@ -737,6 +754,39 @@ document.getElementById("formAgendamento")?.addEventListener("focusin", () => {
   }
 });
 
+// ── Estimativa de valor ao vivo no formulário ──
+function atualizarEstimativa() {
+  const box = document.getElementById("estimativaBox");
+  if (!box) return;
+  const ini = document.getElementById("horaInicio").value;
+  const fim = document.getElementById("horaFim").value;
+  if (!ini || !fim || fim <= ini) { box.style.display = "none"; return; }
+
+  const [hI, mI] = ini.split(":").map(Number);
+  const [hF, mF] = fim.split(":").map(Number);
+  const minutos = (hF*60 + mF) - (hI*60 + mI);
+  if (minutos <= 0) { box.style.display = "none"; return; }
+  const horas = minutos / 60;
+
+  const precoNormal = parseFloat(cfgAtual.precos?.normal || 0);
+  const precoEvento = parseFloat(cfgAtual.precos?.evento || 0);
+  const totalNormal = precoNormal * horas;
+
+  const hTxt = horas % 1 === 0 ? `${horas}h` : `${Math.floor(horas)}h${Math.round((horas%1)*60)}min`;
+  let html = `💰 <b>Estimativa:</b> ${hTxt} × ${fmtBRL(precoNormal)}/h = <b style="color:#c9a84c">${fmtBRL(totalNormal)}</b>`;
+  if (precoEvento && precoEvento !== precoNormal) {
+    html += `<br><span style="font-size:12px;color:rgba(232,223,192,0.55)">Em dia de evento: ${fmtBRL(precoEvento * horas)}</span>`;
+  }
+  html += `<br><span style="font-size:11px;color:rgba(232,223,192,0.45)">Valor base estimado. O serviceiro confirma o total ao concluir.</span>`;
+  box.innerHTML = html;
+  box.style.display = "block";
+}
+
+["horaInicio", "horaFim", "tipo"].forEach(id => {
+  document.getElementById(id)?.addEventListener("change", atualizarEstimativa);
+  document.getElementById(id)?.addEventListener("input", atualizarEstimativa);
+});
+
 // ── Sugere serviceiros alternativos disponíveis no mesmo horário ──
 async function acharServiceirosAlternativos(vocacao, excluir, inicio, fim) {
   const fonte = Object.keys(cfgAtual.serviceiros || {}).length > 0 ? cfgAtual.serviceiros : SERVICEIROS;
@@ -957,6 +1007,8 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   e.target.reset();
   const altBox = document.getElementById("alternativasBox");
   if (altBox) altBox.style.display = "none";
+  const estBox = document.getElementById("estimativaBox");
+  if (estBox) estBox.style.display = "none";
   servicEireEl.innerHTML = '<option value="">Serviceiro</option>';
   document.getElementById("huntCustom").style.display = "none";
   document.getElementById("huntCustom").value = "";
@@ -1856,10 +1908,41 @@ async function carregarHistorico() {
           ${ag.print_url ? `<a href="${ag.print_url}" target="_blank" class="hc-print"><img src="${ag.print_url}" alt="Print do serviço" loading="lazy"><span>📸 Ver print</span></a>` : ""}
           ${ag.anotacoes ? `<div class="hc-anotacoes">🗒️ <b>Anotações do serviceiro:</b><br>${ag.anotacoes.replace(/</g,"&lt;").replace(/\n/g,"<br>")}</div>` : ""}
           ${ag.obs_conclusao ? `<div class="hc-obs">📝 ${ag.obs_conclusao}</div>` : ""}
+          ${tipoUsuario === "cliente" ? `<button class="btn-repetir" data-repetir='${JSON.stringify({serviceiro:ag.serviceiro,vocacao:ag.vocacao,tipo:ag.tipo,hunt:ag.hunt}).replace(/'/g,"&#39;")}'>🔁 Repetir agendamento</button>` : ""}
         </div>
         <span class="hc-badge ${ag.status}">${STATUS_LABELS[ag.status] || ag.status}</span>
       </div>`;
     }).join("");
+
+    // Botão repetir agendamento (cliente)
+    container.querySelectorAll("[data-repetir]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        let dados;
+        try { dados = JSON.parse(btn.dataset.repetir.replace(/&#39;/g, "'")); } catch { return; }
+        // Vai para a aba Agenda e pré-preenche
+        document.getElementById("btnNavAgenda")?.click();
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+        setVal("vocacao", dados.vocacao);
+        // dispara o change da vocação para popular os serviceiros
+        document.getElementById("vocacao")?.dispatchEvent(new Event("change"));
+        setTimeout(() => {
+          setVal("serviceiro", dados.serviceiro);
+          setVal("tipo", dados.tipo);
+          if (dados.hunt) {
+            const huntSel = document.getElementById("hunt");
+            if (huntSel && [...huntSel.options].some(o => o.value === dados.hunt)) {
+              huntSel.value = dados.hunt;
+            } else {
+              setVal("hunt", "custom");
+              const hc = document.getElementById("huntCustom");
+              if (hc) { hc.style.display = "block"; hc.value = dados.hunt; }
+            }
+          }
+          if (perfilAtual?.nick) setVal("nome", perfilAtual.nick);
+          mostrarMensagem("🔁 Dados preenchidos! Escolha a data e o horário para agendar.", "sucesso");
+        }, 150);
+      });
+    });
 
   } catch(e) { container.innerHTML = '<p style="color:rgba(224,90,58,0.7);font-size:13px">Erro ao carregar histórico.</p>'; }
 }
