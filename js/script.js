@@ -95,9 +95,12 @@ async function supaAction(acao, tabela, id = null, dados = null) {
 }
 
 async function supaUpload(bucket, path, file) {
+  // Usa o JWT do usuário logado (não a chave anon) para o Storage reconhecer
+  // que é um usuário autenticado e aplicar a policy corretamente.
+  const token = sessaoAuth?.access_token || SUPA_KEY;
   const res = await fetch(`${SUPA_URL}/storage/v1/object/${bucket}/${path}`, {
     method: "POST",
-    headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + SUPA_KEY },
+    headers: { "apikey": SUPA_KEY, "Authorization": "Bearer " + token },
     body: file
   });
   if (!res.ok) {
@@ -1703,8 +1706,12 @@ function abrirModalFinalizar(ag) {
   const antigo = document.getElementById("modalFinalizar");
   if (antigo) antigo.remove();
 
-  const sugestao = valorCalculado({ ...ag, finalizado_em: new Date().toISOString() });
-  const horas    = fmtDuracao(duracaoMs({ ...ag, finalizado_em: new Date().toISOString() }));
+  const finIni = ag.iniciado_em ? new Date(ag.iniciado_em) : new Date(ag.inicio);
+  const finFim = new Date();
+  const sugestao = valorCalculado({ ...ag, iniciado_em: finIni.toISOString(), finalizado_em: finFim.toISOString() });
+  const horas    = fmtDuracao(duracaoMs({ ...ag, iniciado_em: finIni.toISOString(), finalizado_em: finFim.toISOString() }));
+  const eventoAtivo = !!cfgAtual.precos?.modo_evento;
+  const precoHora = (eventoAtivo && cfgAtual.precos?.evento) ? parseFloat(cfgAtual.precos.evento) : parseFloat(cfgAtual.precos?.normal || 0);
 
   const modal = document.createElement("div");
   modal.id = "modalFinalizar";
@@ -1715,7 +1722,11 @@ function abrirModalFinalizar(ag) {
       <h3 style="font-family:Cinzel,serif;color:var(--gold);margin:0 0 4px">🏆 Finalizar serviço #${ag.numero_chamado || ""}</h3>
       <p style="font-size:12px;color:rgba(232,223,192,0.5);margin:0 0 14px">${ag.nome_cliente} · ${ag.hunt} · ${horas} trabalhadas</p>
 
-      <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">💰 Valor a cobrar (R$)</label>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#e8dfc0">
+        🧮 <b>Cálculo:</b> ${horas} × ${fmtBRL(precoHora)}/h = <b style="color:#c9a84c">${fmtBRL(sugestao)}</b>${eventoAtivo ? ' <span style="color:#e0a23a;font-size:11px">(evento)</span>' : ''}
+      </div>
+
+      <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">💰 Valor a cobrar (R$) — ajuste se quiser cobrar mais</label>
       <input type="number" id="finValor" step="0.01" value="${sugestao.toFixed(2)}" style="width:100%;margin:4px 0 12px">
 
       <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">🗒️ Anotações (o cliente verá)</label>
