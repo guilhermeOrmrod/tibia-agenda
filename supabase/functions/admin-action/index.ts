@@ -257,6 +257,20 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'Apenas administradores' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
+
+      // ── Arquivar serviços finalizados (fechar o mês) ──
+      if (acao === 'arquivar_finalizados') {
+        const finais = ['concluido','encerrado','cancelado','recusado','expirado']
+        let q = serviceClient.from('agendamentos').update({ arquivado: true })
+          .in('status', finais).eq('arquivado', false)
+        // Filtro opcional por período (datas ISO em dados.de / dados.ate)
+        if (dados?.de)  q = q.gte('fim', dados.de)
+        if (dados?.ate) q = q.lte('fim', dados.ate)
+        const { data, error } = await q.select('id')
+        if (error) throw error
+        return new Response(JSON.stringify({ success: true, arquivados: (data || []).length }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
     }
 
     // Ações permitidas para o sistema (sem token admin)

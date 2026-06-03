@@ -413,7 +413,10 @@
 
       <!-- Gestão de Agendamentos -->
       <div class="admin-card">
-        <h3>📋 Gestão de Agendamentos</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <h3 style="margin:0">📋 Gestão de Agendamentos</h3>
+          <button id="btnArquivarMes" class="btn-admin" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.4);color:var(--gold);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer">📦 Arquivar serviços finalizados</button>
+        </div>
         <div class="admin-ag-tabs">
           <button class="admin-ag-tab active" data-ag-tab="pendente">⏳ Pendentes <span id="badgeAgendamentos"></span></button>
           <button class="admin-ag-tab" data-ag-tab="aprovado">✅ Aprovados</button>

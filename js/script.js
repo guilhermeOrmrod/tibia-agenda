@@ -356,7 +356,7 @@ async function carregarCalendario() {
   try {
     // Carrega agendamentos aprovados e em andamento no calendário
     const STATUS_CORES = { aprovado: "#9333ea", em_andamento: "#378add", concluido: "#4caf6e", encerrado: "#e05a3a", cancelado: "#888780" };
-    const eventos = await supaGet("agendamentos", "status=in.(aprovado,em_andamento,concluido,encerrado)&order=inicio.asc");
+    const eventos = await supaGet("agendamentos", "status=in.(aprovado,em_andamento,concluido,encerrado)&arquivado=not.is.true&order=inicio.asc");
     eventos.forEach(ev => {
       calendar.addEvent({
         id:         ev.id,
@@ -1443,8 +1443,8 @@ async function carregarAgendamentosPendentes(status = "pendente") {
   if (tipoUsuario !== "admin") return;
   try {
     const query = status === "todos"
-      ? "order=inicio.desc"
-      : `status=eq.${status}&order=inicio.asc`;
+      ? "arquivado=not.is.true&order=inicio.desc"
+      : `status=eq.${status}&arquivado=not.is.true&order=inicio.asc`;
     const ags = await supaGet("agendamentos", query);
     const badge = document.getElementById("badgeAgendamentos");
 
@@ -1883,7 +1883,7 @@ async function carregarHistorico() {
   try {
     const chamadoFiltro = document.getElementById("filtroChamado")?.value.trim();
     const nomeFiltro    = document.getElementById("filtroNomeHistorico")?.value.trim();
-    let query = "order=inicio.desc";
+    let query = "arquivado=not.is.true&order=inicio.desc";
     if (statusFiltro !== "todos")  query += `&status=eq.${statusFiltro}`;
     if (servicFiltro !== "todos")  query += `&serviceiro=eq.${encodeURIComponent(servicFiltro)}`;
     if (chamadoFiltro)             query += `&numero_chamado=eq.${chamadoFiltro}`;
@@ -2320,7 +2320,7 @@ async function carregarMeusAgendamentos(status = "pendente") {
   container.innerHTML = '<p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>';
 
   const ags = await supaGet("agendamentos",
-    `serviceiro=eq.${encodeURIComponent(nomeServ)}&status=eq.${status}&order=inicio.asc`
+    `serviceiro=eq.${encodeURIComponent(nomeServ)}&status=eq.${status}&arquivado=not.is.true&order=inicio.asc`
   );
 
   // Guarda para os filtros e renderiza aplicando-os
@@ -2930,6 +2930,25 @@ function atualizarServiceiros() {
   // Re-renderiza horários nos novos <li> criados (usa cache, sem nova chamada ao Supabase)
   renderizarHorariosCards();
 }
+
+// Botão: arquivar serviços finalizados (fechar o mês)
+document.getElementById("btnArquivarMes")?.addEventListener("click", async () => {
+  const ok = confirm(
+    "📦 Arquivar todos os serviços FINALIZADOS?\n\n" +
+    "Isto remove das telas os chamados concluídos, encerrados, cancelados, recusados e expirados. " +
+    "Eles continuam guardados no banco (não são apagados), e pagamentos/avaliações são mantidos.\n\n" +
+    "Pendentes e em andamento NÃO são afetados.\n\nDeseja continuar?"
+  );
+  if (!ok) return;
+  try {
+    const r = await adminAction("arquivar_finalizados", null, null, null, {});
+    mostrarMensagem(`📦 ${r.arquivados || 0} serviço(s) arquivado(s) com sucesso!`, "sucesso");
+    carregarAgendamentosPendentes(abaAgAtual);
+    carregarHistorico();
+  } catch (e) {
+    mostrarMensagem(`❌ Erro ao arquivar: ${e.message}`, "erro");
+  }
+});
 
 // Botão: salvar preços
 document.getElementById("btnSalvarPrecos").addEventListener("click", async () => {
