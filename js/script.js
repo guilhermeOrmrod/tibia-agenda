@@ -40,6 +40,12 @@ async function supaGet(tabela, query = "") {
   return res.json();
 }
 
+// Limita o tamanho de um texto antes de salvar (anti-flood de dados grandes).
+function limitarTexto(valor, max) {
+  const v = (valor || "").trim();
+  return v.length > max ? v.slice(0, max) : v;
+}
+
 // Anti-flood: impede disparar a mesma operação de escrita em rajada.
 // Guarda o instante da última escrita por "chave" (tabela) e exige um intervalo mínimo.
 const _ultimaEscrita = {};
@@ -891,13 +897,13 @@ document.getElementById("formAgendamento").addEventListener("submit", async (e) 
   e.preventDefault();
   if (!tipoUsuario) { mostrarMensagem("⚠️ Faça login primeiro.", "erro"); return; }
 
-  const nome_cliente = document.getElementById("nome").value.trim();
+  const nome_cliente = limitarTexto(document.getElementById("nome").value, 50);
   const data         = document.getElementById("data").value;
   const horaInicio   = document.getElementById("horaInicio").value;
   const horaFim      = document.getElementById("horaFim").value;
   const tipo         = document.getElementById("tipo").value;
   const huntSelect    = document.getElementById("hunt").value;
-  const huntCustomVal = document.getElementById("huntCustom").value.trim();
+  const huntCustomVal = limitarTexto(document.getElementById("huntCustom").value, 60);
   const hunt          = huntSelect === "custom" ? huntCustomVal : huntSelect;
   const vocacao      = document.getElementById("vocacao").value;
   const serviceiro   = document.getElementById("serviceiro").value;
@@ -1285,7 +1291,7 @@ document.getElementById("btnEnviarPagamento").addEventListener("click", async ()
   const numChamado  = document.getElementById("pgNumeroChamado").value.trim();
   const data        = document.getElementById("pgData").value;
   const valor       = document.getElementById("pgValor").value;
-  const obs         = document.getElementById("pgObs").value.trim();
+  const obs         = limitarTexto(document.getElementById("pgObs").value, 300);
   const arquivo     = document.getElementById("pgArquivo").files[0];
 
   if (!nome || !serviceiro || !data || !valor || !arquivo) {
@@ -1776,7 +1782,7 @@ function abrirModalFinalizar(ag) {
     const fileEl  = document.getElementById("finPrint");
 
     const valorFinal = parseFloat((valorEl.value || "").replace(",", "."));
-    const anotacoes  = (anotEl.value || "").trim();
+    const anotacoes  = limitarTexto(anotEl.value, 500);
     const arquivo    = fileEl.files[0];
 
     // Validação do print (se anexado)
@@ -3279,8 +3285,8 @@ document.querySelectorAll(".faq-pergunta").forEach(btn => {
 
 // Enviar sugestão
 document.getElementById("btnEnviarSugestao").addEventListener("click", async () => {
-  const nome     = document.getElementById("sugNome").value.trim();
-  const mensagem = document.getElementById("sugMensagem").value.trim();
+  const nome     = limitarTexto(document.getElementById("sugNome").value, 50);
+  const mensagem = limitarTexto(document.getElementById("sugMensagem").value, 1000);
 
   if (!nome || !mensagem) {
     mostrarMensagem("⚠️ Preencha seu nick e a sugestão.", "erro"); return;
