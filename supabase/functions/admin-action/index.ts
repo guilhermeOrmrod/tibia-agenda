@@ -176,8 +176,44 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
+    // ── Modo cliente: paga uma cobrança própria (anexa comprovante) ──
+    if (acao === 'cliente_pagar') {
+      const jwt = req.headers.get('x-user-jwt')
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: 'Sem autenticação' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: `Bearer ${jwt}` } } }
+      )
+      const { data: userData, error: userErr } = await authClient.auth.getUser()
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Sessão inválida' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const { data: perfil } = await serviceClient
+        .from('perfis').select('nick').eq('id', userData.user.id).single()
+      if (!perfil) {
+        return new Response(JSON.stringify({ error: 'Perfil não encontrado' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      // Confirma que a cobrança é do próprio cliente (pelo nick) e está como cobranca
+      const { data: pag } = await serviceClient
+        .from('pagamentos').select('nome, status').eq('id', id).single()
+      if (!pag || (pag.nome || '').toLowerCase() !== (perfil.nick || '').toLowerCase()) {
+        return new Response(JSON.stringify({ error: 'Esta cobrança não é sua' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      const patch: Record<string, unknown> = { status: 'analise' }
+      if (typeof dados?.comprovante_url === 'string') patch.comprovante_url = dados.comprovante_url
+      const { error } = await serviceClient.from('pagamentos').update(patch).eq('id', id)
+      if (error) throw error
+      return new Response(JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
 
-    // ── Modo serviceiro: gerencia os próprios horários de disponibilidade ──
     if (acao === 'serviceiro_horario') {
       const jwt = req.headers.get('x-user-jwt')
       if (!jwt) {

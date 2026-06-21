@@ -487,6 +487,13 @@ async function avisarStatusCliente() {
   try {
     const meus = await supaGet("agendamentos",
       `nome_cliente=eq.${encodeURIComponent(perfilAtual.nick)}&status=in.(aprovado,em_andamento,concluido)&order=criado_em.desc`);
+    // Cobranças a pagar
+    const cobrancas = await supaGet("pagamentos",
+      `nome=eq.${encodeURIComponent(perfilAtual.nick)}&status=eq.cobranca`).catch(() => []);
+    if (cobrancas.length) {
+      const total = cobrancas.reduce((s,c) => s + (parseFloat(c.valor)||0), 0);
+      setTimeout(() => mostrarMensagem(`💰 Você tem ${cobrancas.length} serviço(s) a pagar (R$ ${total.toFixed(2)}). Veja na aba Pagamentos.`, "sucesso"), 1500);
+    }
     if (!meus.length) return;
     const aprovados = meus.filter(a => a.status === "aprovado").length;
     const andamento = meus.filter(a => a.status === "em_andamento").length;
@@ -1177,6 +1184,7 @@ async function renderizarPagamentos() {
       pags = todosPags.filter(p => (p.nome || "").toLowerCase() === meuNick);
     }
 
+    const cobrancas = pags.filter(p => p.status === "cobranca");
     const analise   = pags.filter(p => p.status === "analise");
     const aprovados = pags.filter(p => p.status === "aprovado");
     const recusados = pags.filter(p => p.status === "recusado");
@@ -1218,6 +1226,10 @@ async function renderizarPagamentos() {
           <button class="btn-aprovar" data-id="${p.id}">✅ Aprovar</button>
           <button class="btn-recusar" data-id="${p.id}">❌ Recusar</button>
         </div>` : "";
+      // Botão "Pagar" para o cliente nas cobranças
+      const isCliente = tipoUsuario === "cliente";
+      const btnPagar = (isCliente && p.status === "cobranca") ? `
+        <button class="btn-gold" style="width:100%;margin-top:8px" data-pagar="${p.id}">💳 Pagar agora</button>` : "";
       const btnExcluir = isAdmin
         ? `<button class="btn-recusar" style="margin-top:6px;width:100%" data-excluir="${p.id}">🗑️ Excluir</button>`
         : "";
@@ -1230,13 +1242,19 @@ async function renderizarPagamentos() {
           <div class="pg-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div>
           ${imgHTML}
           ${acoes}
+          ${btnPagar}
           ${btnExcluir}
         </div>`;
     }
 
+    document.getElementById("listaCobranca").innerHTML  = cobrancas.length ? cobrancas.map(cardHTML).join("") : '<div class="vazio-msg">Nada a pagar</div>';
     document.getElementById("listaAnalise").innerHTML   = analise.length   ? analise.map(cardHTML).join("")   : '<div class="vazio-msg">Nenhum pagamento</div>';
     document.getElementById("listaAprovados").innerHTML = aprovados.length ? aprovados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum aprovado</div>';
     document.getElementById("listaRecusados").innerHTML = recusados.length ? recusados.map(cardHTML).join("") : '<div class="vazio-msg">Nenhum recusado</div>';
+
+    // Botão "Pagar" nas cobranças (cliente)
+    document.querySelectorAll("[data-pagar]").forEach(btn =>
+      btn.addEventListener("click", () => abrirPagamentoCobranca(btn.dataset.pagar)));
 
     document.querySelectorAll(".btn-aprovar").forEach(btn =>
       btn.addEventListener("click", () => alterarStatusPagamento(btn.dataset.id, "aprovado")));
@@ -1254,6 +1272,55 @@ async function renderizarPagamentos() {
   } catch(e) {
     console.error("Erro ao carregar pagamentos:", e);
   }
+}
+
+// Cliente paga uma cobrança: anexa comprovante e move de "cobranca" para "analise"
+async function abrirPagamentoCobranca(pagamentoId) {
+  const antigo = document.getElementById("modalPagar");
+  if (antigo) antigo.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modalPagar";
+  modal.className = "modal";
+  modal.style.display = "flex";
+  modal.innerHTML = `
+    <div class="modal-conteudo" style="max-width:420px">
+      <h3 style="font-family:Cinzel,serif;color:var(--gold);margin:0 0 12px">💳 Confirmar pagamento</h3>
+      <p style="font-size:13px;color:rgba(232,223,192,0.7);margin:0 0 14px">Faça o Pix do valor combinado e anexe o comprovante abaixo. O serviceiro vai confirmar o recebimento.</p>
+      <label style="font-size:12px;color:rgba(232,223,192,0.7);font-family:Cinzel,serif">📎 Comprovante do Pix</label>
+      <input type="file" id="pagComprovante" accept="image/*" style="width:100%;margin:4px 0 12px">
+      <div style="display:flex;gap:8px">
+        <button id="pagConfirmar" class="btn-gold" style="flex:1">Enviar comprovante</button>
+        <button id="pagCancelar" class="btn-cancelar">Cancelar</button>
+      </div>
+      <p id="pagErro" style="color:#e05a3a;font-size:12px;margin:8px 0 0;min-height:14px"></p>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById("pagCancelar").onclick = () => modal.remove();
+
+  document.getElementById("pagConfirmar").onclick = async () => {
+    const erroEl = document.getElementById("pagErro");
+    const btn    = document.getElementById("pagConfirmar");
+    const file   = document.getElementById("pagComprovante").files[0];
+    if (!file) { erroEl.textContent = "Anexe o comprovante."; return; }
+    if (!file.type.startsWith("image/")) { erroEl.textContent = "O comprovante precisa ser uma imagem."; return; }
+    if (file.size > 5 * 1024 * 1024) { erroEl.textContent = "Imagem muito grande (máx. 5MB)."; return; }
+
+    btn.disabled = true; btn.textContent = "⏳ Enviando...";
+    try {
+      const ext  = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `comprovante_${pagamentoId}_${Date.now()}.${ext}`;
+      const url  = await supaUpload("comprovantes", path, file);
+      // Atualiza a cobrança: vira "analise" com o comprovante (valida dono na Edge Function)
+      await supaAction("cliente_pagar", "pagamentos", pagamentoId, { comprovante_url: url });
+      modal.remove();
+      mostrarMensagem("📤 Comprovante enviado! Aguarde a confirmação do serviceiro.", "sucesso");
+      renderizarPagamentos();
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "Enviar comprovante";
+      erroEl.textContent = "Erro: " + e.message;
+    }
+  };
 }
 
 async function alterarStatusPagamento(id, novoStatus) {
@@ -1840,12 +1907,29 @@ function abrirModalFinalizar(ag) {
 
       await updateAgendamento(ag.id, patch);
 
+      // Gera a cobrança automática do serviço (se houver valor definido)
+      if (!isNaN(valorFinal) && valorFinal > 0) {
+        try {
+          await supaPost("pagamentos", {
+            nome: ag.nome_cliente,
+            serviceiro: ag.serviceiro,
+            data: new Date().toISOString().slice(0,10),
+            valor: valorFinal,
+            obs: `Cobrança automática do serviço #${ag.numero_chamado || ""}`,
+            status: "cobranca",
+            agendamento_id: ag.id
+          });
+        } catch (errCob) {
+          console.warn("Não foi possível gerar a cobrança automática:", errCob);
+        }
+      }
+
       if (typeof calendar !== "undefined" && calendar) {
         const ev = calendar.getEventById(ag.id);
         if (ev) ev.setProp("color", "#4caf6e");
       }
       modal.remove();
-      mostrarMensagem("🏆 Serviço concluído!", "sucesso");
+      mostrarMensagem("🏆 Serviço concluído! Cobrança gerada para o cliente.", "sucesso");
       if (tipoUsuario === "admin") carregarAgendamentosPendentes(abaAgAtual);
       else { carregarMeusAgendamentos("em_andamento"); carregarMinhaProducao(); }
       mostrarModalAvaliacao(ag);
