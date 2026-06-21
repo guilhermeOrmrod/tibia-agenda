@@ -1384,6 +1384,34 @@ if (pgNomeEl) {
 // GESTÃO DE AGENDAMENTOS (Admin)
 // =========================================
 
+// ── Agrupa uma lista de agendamentos por mês, em blocos recolhíveis ──
+function agruparPorMesHTML(itens, campoData, renderCard) {
+  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+                 "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const grupos = {};
+  itens.forEach(ag => {
+    const d = new Date(ag[campoData] || ag.inicio || ag.criado_em);
+    const chave = `${d.getFullYear()}-${String(d.getMonth()).padStart(2,"0")}`;
+    (grupos[chave] = grupos[chave] || []).push(ag);
+  });
+  const chaves = Object.keys(grupos).sort((a,b) => b.localeCompare(a));
+
+  return chaves.map((chave, idx) => {
+    const [ano, mes] = chave.split("-");
+    const titulo = `${MESES[parseInt(mes)]} ${ano}`;
+    const cards  = grupos[chave].map(renderCard).join("");
+    const aberto = idx === 0 ? "open" : "";
+    return `
+      <details class="grupo-mes" ${aberto}>
+        <summary class="grupo-mes-titulo">
+          <span>📅 ${titulo}</span>
+          <span class="grupo-mes-contagem">${grupos[chave].length}</span>
+        </summary>
+        <div class="grupo-mes-conteudo">${cards}</div>
+      </details>`;
+  }).join("");
+}
+
 const STATUS_ICONS = {
   pendente:     "⏳",
   aprovado:     "✅",
@@ -1494,7 +1522,7 @@ async function carregarAgendamentosPendentes(status = "pendente") {
       return;
     }
 
-    container.innerHTML = ags.map(ag => {
+    container.innerHTML = agruparPorMesHTML(ags, "inicio", ag => {
       const acoes    = gerarAcoesAdmin(ag);
       const numChamado = ag.numero_chamado ? `<span class="ag-chamado">#${ag.numero_chamado}</span>` : '';
       const expirado = new Date(ag.fim) < new Date();
@@ -1513,7 +1541,7 @@ async function carregarAgendamentosPendentes(status = "pendente") {
           </div>
           ${acoes}
         </div>`;
-    }).join("");
+    });
 
     // Botões
     container.querySelectorAll(".btn-aprovar[data-ag-id]").forEach(btn => {
@@ -1947,7 +1975,7 @@ async function carregarHistorico() {
       return;
     }
 
-    container.innerHTML = ags.map(ag => {
+    container.innerHTML = agruparPorMesHTML(ags, "inicio", ag => {
       const concluido = ag.status === "concluido" || ag.status === "encerrado";
       const valor = ag.valor_final != null ? Number(ag.valor_final) : (concluido ? valorCalculado(ag) : null);
       return `
@@ -1973,7 +2001,7 @@ async function carregarHistorico() {
         </div>
         <span class="hc-badge ${ag.status}">${STATUS_LABELS[ag.status] || ag.status}</span>
       </div>`;
-    }).join("");
+    });
 
     // Botão repetir agendamento (cliente)
     container.querySelectorAll("[data-repetir]").forEach(btn => {
@@ -2416,7 +2444,7 @@ function renderMeusAgendamentos() {
     return;
   }
 
-  container.innerHTML = ags.map(ag => {
+  container.innerHTML = agruparPorMesHTML(ags, "inicio", ag => {
     const agora  = new Date();
     const inicio = new Date(ag.inicio);
     const fim    = new Date(ag.fim);
@@ -2461,7 +2489,7 @@ function renderMeusAgendamentos() {
         </div>
         ${acoes}
       </div>`;
-  }).join("");
+  });
 
   // Listeners — reutiliza as funções do admin
   container.querySelectorAll(".btn-aprovar[data-ag-id]").forEach(btn => {
