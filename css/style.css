@@ -2811,3 +2811,32 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
   color: rgba(232,223,192,0.85);
 }
 .modal-horario-linha .mh-hora { color: var(--gold); font-weight: 600; font-family: 'Cinzel', serif; }
+
+/* ── Modal de disponibilidade compacto (grade por dia) ── */
+.mh-grade {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.mh-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 10px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.mh-dia-nome {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.mh-dia-faixas {
+  font-size: 12px;
+  color: rgba(232,223,192,0.8);
+  line-height: 1.5;
+}

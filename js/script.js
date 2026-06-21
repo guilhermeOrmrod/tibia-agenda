@@ -3109,23 +3109,35 @@ function abrirModalHorarios(nome) {
   const antigo = document.getElementById("modalHorarios");
   if (antigo) antigo.remove();
 
-  const grupos = agruparHorarios(nome);
-  const linhas = grupos.length === 0
-    ? '<p style="color:rgba(232,223,192,0.5)">Sem horário fixo cadastrado. Consulte o serviceiro.</p>'
-    : grupos.map(g => {
-        const dia = g.primeiroDia === g.ultimoDia ? g.primeiroDia : `${g.primeiroDia} a ${g.ultimoDia}`;
-        return `<div class="modal-horario-linha"><span>📅 ${dia}</span><span class="mh-hora">${g.inicio.slice(0,5)} – ${g.fim.slice(0,5)}</span></div>`;
-      }).join("");
+  // Agrupa por DIA: cada dia aparece uma vez, com todas as faixas juntas
+  const horarios = horariosCache
+    .filter(h => h.serviceiro === nome)
+    .sort((a,b) => DIAS_ORDEM.indexOf(a.dia_semana) - DIAS_ORDEM.indexOf(b.dia_semana));
+
+  const porDia = {};
+  horarios.forEach(h => {
+    const faixa = `${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}`;
+    (porDia[h.dia_semana] = porDia[h.dia_semana] || []).push(faixa);
+  });
+  const diasOrdenados = Object.keys(porDia).sort((a,b) => DIAS_ORDEM.indexOf(a) - DIAS_ORDEM.indexOf(b));
+
+  const linhas = diasOrdenados.length === 0
+    ? '<p style="color:rgba(232,223,192,0.5);grid-column:1/-1;text-align:center">Sem horário fixo cadastrado. Consulte o serviceiro.</p>'
+    : diasOrdenados.map(dia => `
+        <div class="mh-dia">
+          <span class="mh-dia-nome">${dia.slice(0,3)}</span>
+          <span class="mh-dia-faixas">${porDia[dia].join("<br>")}</span>
+        </div>`).join("");
 
   const modal = document.createElement("div");
   modal.id = "modalHorarios";
   modal.className = "modal";
   modal.style.display = "flex";
   modal.innerHTML = `
-    <div class="modal-conteudo" style="max-width:380px">
-      <h3 style="font-family:Cinzel,serif;color:var(--gold);margin:0 0 4px">🕐 Disponibilidade</h3>
-      <p style="font-size:13px;color:rgba(232,223,192,0.6);margin:0 0 16px">⚔️ ${nome}</p>
-      <div class="modal-horarios-lista">${linhas}</div>
+    <div class="modal-conteudo" style="max-width:420px">
+      <h3 style="font-family:Cinzel,serif;color:var(--gold);margin:0 0 2px">🕐 Disponibilidade</h3>
+      <p style="font-size:13px;color:rgba(232,223,192,0.6);margin:0 0 14px">⚔️ ${nome}</p>
+      <div class="mh-grade">${linhas}</div>
       <button id="fecharModalHorarios" class="btn-gold" style="width:100%;margin-top:16px">Fechar</button>
     </div>`;
   document.body.appendChild(modal);
