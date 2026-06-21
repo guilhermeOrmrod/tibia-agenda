@@ -216,11 +216,11 @@ async function verificarDisponibilidade(dataSelecionada) {
     if (spanExistente) spanExistente.remove();
 
     // Garante que o nome tem wrapper com ícone
-    let nomeWrap = li.querySelector(".nome-wrap");
+    let nomeWrap = li.querySelector(".sq-topo") || li.querySelector(".nome-wrap");
     if (!nomeWrap) {
       const nomeEl = li.querySelector(".nome");
       nomeWrap = document.createElement("div");
-      nomeWrap.className = "nome-wrap";
+      nomeWrap.className = "sq-topo";
       const icon = document.createElement("span");
       icon.className = "status-icon";
       nomeWrap.appendChild(icon);
@@ -2644,10 +2644,10 @@ async function carregarDashboard() {
     ]);
 
     const total       = todos.length;
-    const concluidos  = todos.filter(a => a.status === "concluido").length;
+    const concluidos  = todos.filter(a => a.status === "concluido" || a.status === "encerrado").length;
     const pendentes   = todos.filter(a => a.status === "pendente").length;
     const emAndamento = todos.filter(a => a.status === "em_andamento").length;
-    const cancelados  = todos.filter(a => ["cancelado","recusado","encerrado","expirado"].includes(a.status)).length;
+    const cancelados  = todos.filter(a => ["cancelado","recusado","expirado"].includes(a.status)).length;
 
     // Receita (só admin): soma dos pagamentos aprovados
     let receitaHTML = "";
@@ -2741,9 +2741,9 @@ async function carregarDashboard() {
             <span class="dash-rank-qtd">${qtd}</span>
           </div>`).join("");
 
-    // ── Top serviceiros por quantidade de concluídos ──
+    // ── Top serviceiros por quantidade de serviços realizados (concluído + encerrado) ──
     const porServiceiro = {};
-    todos.filter(a => a.status === "concluido").forEach(a => {
+    todos.filter(a => a.status === "concluido" || a.status === "encerrado").forEach(a => {
       porServiceiro[a.serviceiro] = (porServiceiro[a.serviceiro] || 0) + 1;
     });
     const ranking = Object.entries(porServiceiro).sort((a,b) => b[1]-a[1]).slice(0,5);
@@ -2938,12 +2938,13 @@ function atualizarServiceiros() {
     lista.forEach(nome => {
       const li = document.createElement("li");
       li.dataset.nome = nome;
+      li.className = "serv-quadrado";
       li.innerHTML = `
-        <div class="nome-wrap">
+        <div class="sq-topo">
           <span class="status-icon">⏳</span>
           <span class="nome">${nome}</span>
         </div>
-        <span class="badge verificando">verificando...</span>
+        <span class="badge verificando">...</span>
         <span class="horarios-semana" data-serviceiro="${nome}"></span>`;
       ul.appendChild(li);
     });

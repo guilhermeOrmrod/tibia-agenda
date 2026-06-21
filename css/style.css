@@ -285,41 +285,46 @@ nav::-webkit-scrollbar { display: none; }
 .serviceiros-list {
   list-style: none;
   padding: 8px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
 }
 
-.serviceiros-list li {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
+/* Cada serviceiro vira um cartão quadrado compacto */
+.serviceiros-list li.serv-quadrado {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 10px 16px;
-  border-bottom: 1px solid rgba(201,168,76,0.08);
-  transition: background 0.15s;
-  gap: 4px 10px;
+  justify-content: center;
+  text-align: center;
+  gap: 7px;
+  padding: 14px 10px;
+  border: 1px solid rgba(201,168,76,0.12);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  transition: all 0.15s;
   position: relative;
 }
 
-.serviceiros-list li:last-child { border-bottom: none; }
-.serviceiros-list li:hover { background: rgba(201,168,76,0.05); }
+.serviceiros-list li:hover { background: rgba(201,168,76,0.06); border-color: rgba(201,168,76,0.3); }
 
-/* Linha colorida à esquerda por status */
-.serviceiros-list li.status-disponivel { border-left: 3px solid rgba(76,175,110,0.6); }
-.serviceiros-list li.status-ocupado { border-left: 3px solid rgba(224,90,58,0.6); background: rgba(224,90,58,0.03); }
+/* Borda de status (topo do card em vez de lateral) */
+.serviceiros-list li.status-disponivel { border-top: 2px solid rgba(76,175,110,0.7); }
+.serviceiros-list li.status-ocupado { border-top: 2px solid rgba(224,90,58,0.7); background: rgba(224,90,58,0.04); }
 
-/* Nome com ícone — ocupa coluna 1, linha 1 */
-.nome-wrap {
+/* Topo: ícone + nome */
+.sq-topo {
   display: flex;
   align-items: center;
-  gap: 7px;
-  grid-column: 1;
-  grid-row: 1;
+  gap: 6px;
   min-width: 0;
+  max-width: 100%;
 }
 
-.status-icon { font-size: 10px; flex-shrink: 0; }
+.status-icon { font-size: 9px; flex-shrink: 0; }
 
 .serviceiros-list .nome {
-  font-size: 15px;
+  font-size: 14px;
   color: #e8dfc0;
   font-weight: 600;
   white-space: nowrap;
@@ -327,17 +332,15 @@ nav::-webkit-scrollbar { display: none; }
   text-overflow: ellipsis;
 }
 
-/* Badge — ocupa coluna 2, linha 1 */
+/* Badge de status */
 .badge {
-  font-size: 11px;
+  font-size: 10px;
   font-family: 'Cinzel', serif;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 20px;
   letter-spacing: 0.5px;
   font-weight: 700;
   flex-shrink: 0;
-  grid-column: 2;
-  grid-row: 1;
   white-space: nowrap;
 }
 
@@ -580,21 +583,20 @@ button[type="submit"]:hover { background: var(--gold-light); transform: translat
 }
 
 .horarios-ocupados {
-  font-size: 12px;
+  font-size: 10px;
   color: rgba(224, 90, 58, 0.85);
   font-family: 'Cinzel', serif;
   letter-spacing: 0.3px;
-  padding: 2px 0 2px 17px;
   display: flex;
   align-items: center;
-  gap: 5px;
-  grid-column: 1 / -1;
-  grid-row: 3;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
 }
 
 .horarios-ocupados::before {
   content: "🕐";
-  font-size: 11px;
+  font-size: 10px;
 }
 
 /* =========================================

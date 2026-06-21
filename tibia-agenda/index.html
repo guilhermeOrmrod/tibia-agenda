@@ -3,73 +3,828 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agenda de Serviços Rubinot - Panic</title>
-
-  <!-- Biblioteca do calendário -->
+  <title>Fatal Services - Rubinot</title>
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-
-  <!-- CSS do projeto -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <h1>📅 Agenda de Serviços Rubinot - Panic</h1>
+  <!-- Vídeo de fundo -->
+  <div id="video-bg">
+    <video autoplay muted loop playsinline>
+      <source src="videos/hero-bg.mp4" type="video/mp4">
+    </video>
+    <div id="video-overlay"></div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⚔️</span>
+        <div>
+          <h1>Fatal Services</h1>
+          <span class="logo-sub">Rubinot</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-btn active" data-tab="serviceiros">Serviceiros</button>
+        <button class="nav-btn" data-tab="agenda"      id="btnNavAgenda">Agenda</button>
+        <button class="nav-btn" data-tab="precos"      id="btnNavPrecos">Preços</button>
+        <button class="nav-btn" data-tab="contatos"    id="btnNavContatos">Contatos</button>
+        <button class="nav-btn" data-tab="pagamentos"  id="btnNavPagamentos">Pagamentos</button>
+        <button class="nav-btn" data-tab="dashboard"   id="btnNavStats">📊 Stats</button>
+        <button class="nav-btn" data-tab="historico"   id="btnNavHistorico">Histórico</button>
+        <button class="nav-btn" data-tab="termos"       id="btnNavTermos">📜 Termos</button>
+        <button class="nav-btn nav-btn-admin" data-tab="serviceiro-painel" id="btnNavServicos" style="display:none">⚔️ Meus Serviços</button>
+        <button class="nav-btn nav-btn-admin" data-tab="admin" id="btnNavAdmin" style="display:none">⚙️ Admin</button>
+      </nav>
+      <div id="loginBox">
+        <div id="loginArea">
+          <button id="btnAbrirAuth" class="btn-auth-header">Entrar / Cadastrar</button>
+        </div>
+        <div id="userArea">
+          <span id="usuarioLogado"></span>
+          <button id="logoutBtn">Sair</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
   <div id="mensagem"></div>
 
-  <!-- Login -->
-  <div id="loginBox">
-    <h3>Login</h3>
-    <div id="loginArea">
-      <input type="password" id="senha" placeholder="Senha">
-      <button id="loginBtn">Entrar</button>
-    </div>
-    <div id="userArea">
-      <span id="usuarioLogado"></span>
-      <button id="logoutBtn">Sair</button>
-    </div>
+  <!-- Banner de modo evento global (controlado pelo admin) -->
+  <div id="bannerEvento" style="display:none;background:linear-gradient(90deg,rgba(224,162,58,0.25),rgba(201,168,76,0.15));border-bottom:1px solid rgba(224,162,58,0.5);color:#ffe9b0;text-align:center;padding:10px 16px;font-family:'Cinzel',serif;font-size:14px"></div>
+
+  <!-- Banner da guild -->
+  <div id="bannerGuild">
+    <span class="banner-icon">⚔️</span>
+    <span class="banner-texto">
+      Ainda não faz parte da guild <strong>Fatal</strong> no Lunarian?
+      <a href="https://fatal.team/" target="_blank" rel="noopener">Acesse fatal.team e dê seu apply!</a>
+    </span>
+    <button id="btnFecharBanner" title="Fechar">×</button>
   </div>
 
-  <!-- Conteúdo principal -->
-  <div id="container">
+  <!-- ABA: Serviceiros -->
+  <section id="tab-serviceiros" class="tab-content active">
+    <div class="section-header">
+      <h2>Serviceiros Disponíveis</h2>
+      <div class="date-filter">
+        <label>Ver disponibilidade em:</label>
+        <input type="date" id="dataFiltro">
+      </div>
+    </div>
 
-    <!-- Formulário de agendamento -->
+    <div class="vocacoes-grid">
+
+      <div class="vocacao-card">
+        <div class="vocacao-header ms">
+          <span class="vocacao-icon">🔥</span>
+          <h3>Master Sorcerer</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Master Sorcerer">
+          <li data-nome="Fear"><span class="nome">Fear</span><span class="badge">verificando...</span><span class="horarios-semana"></span></li>
+          <li data-nome="Panic"><span class="nome">Panic</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Panic"></span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Cassinho"></span></li>
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Murilo"></span></li>
+          <li data-nome="Jambi"><span class="nome">Jambi</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Jambi"></span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header ed">
+          <span class="vocacao-icon">🌿</span>
+          <h3>Elder Druid</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Elder Druid">
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Murilo"></span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Cassinho"></span></li>
+          <li data-nome="Panic"><span class="nome">Panic</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Panic"></span></li>
+          <li data-nome="Jaapacrazy"><span class="nome">Jaapacrazy</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Jaapacrazy"></span></li>
+          <li data-nome="Jambi"><span class="nome">Jambi</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Jambi"></span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header ek">
+          <span class="vocacao-icon">🛡️</span>
+          <h3>Elite Knight</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Elite Knight">
+          <li data-nome="Paradox"><span class="nome">Paradox</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Paradox"></span></li>
+          <li data-nome="Raikess"><span class="nome">Raikess</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Raikess"></span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Cassinho"></span></li>
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Murilo"></span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header rp">
+          <span class="vocacao-icon">🏹</span>
+          <h3>Royal Paladin</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Royal Paladin">
+          <li data-nome="Accid"><span class="nome">Accid</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Accid"></span></li>
+          <li data-nome="Cassinho"><span class="nome">Cassinho</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Cassinho"></span></li>
+          <li data-nome="Raikess"><span class="nome">Raikess</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Raikess"></span></li>
+          <li data-nome="Jaapacrazy"><span class="nome">Jaapacrazy</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Jaapacrazy"></span></li>
+        </ul>
+      </div>
+
+      <div class="vocacao-card">
+        <div class="vocacao-header em">
+          <span class="vocacao-icon">☯️</span>
+          <h3>Exalted Monk</h3>
+        </div>
+        <ul class="serviceiros-list" data-vocacao="Exalted Monk">
+          <li data-nome="Murilo"><span class="nome">Murilo</span><span class="badge">verificando...</span><span class="horarios-semana" data-serviceiro="Murilo"></span></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ABA: Agenda -->
+  <section id="tab-agenda" class="tab-content">
+
+    <!-- Bloqueio para não logados -->
+    <div id="agendaBloqueado" class="contatos-bloqueado" style="display:none">
+      <span class="bloqueado-icon">🔒</span>
+      <p>Faça login para agendar um serviço.</p>
+    </div>
+
     <form id="formAgendamento">
-      <input type="text" id="nome"       placeholder="Seu nome" required>
-      <input type="date" id="data"       required>
-      <input type="time" id="horaInicio" required>
-      <input type="time" id="horaFim"    required>
-
-      <select id="tipo" required>
-        <option value="">Selecione o tipo</option>
-        <option value="Solo">Solo</option>
-        <option value="PT">PT</option>
-      </select>
-
-      <select id="hunt" required>
-        <option value="">Selecione o hunt</option>
-        <option value="RottenBlood">RottenBlood</option>
-        <option value="Soulwar">Soulwar</option>
-        <option value="Gnomprona">Gnomprona</option>
-        <option value="Crypt">Crypt</option>
-      </select>
-
-      <select id="vocacao" required>
-        <option value="">Selecione a vocação</option>
-        <option value="Knight">Knight</option>
-        <option value="Paladin">Paladin</option>
-        <option value="Sorcerer">Sorcerer</option>
-        <option value="Druid">Druid</option>
-      </select>
-
-      <button type="submit">Agendar</button>
+      <h3>Novo Agendamento</h3>
+      <div class="form-grid">
+        <input type="text" id="nome" placeholder="Seu nick (ex: Fear Popstar)" required autocomplete="off">
+        <input type="date" id="data" required>        <input type="time" id="horaInicio" required>
+        <input type="time" id="horaFim" required>
+        <select id="tipo" required>
+          <option value="">Tipo</option>
+          <option value="Solo">Solo</option>
+          <option value="PT">PT</option>
+        </select>
+        <select id="hunt" required>
+          <option value="">Hunt</option>
+          <option value="RottenBlood">RottenBlood</option>
+          <option value="Soulwar">Soulwar</option>
+          <option value="Gnomprona">Gnomprona</option>
+          <option value="Crypt">Crypt</option>
+          <option value="custom">De sua escolha...</option>
+        </select>
+        <select id="vocacao" required>
+          <option value="">Vocação do serviceiro</option>
+          <option value="Master Sorcerer">Master Sorcerer</option>
+          <option value="Elder Druid">Elder Druid</option>
+          <option value="Elite Knight">Elite Knight</option>
+          <option value="Royal Paladin">Royal Paladin</option>
+          <option value="Exalted Monk">Exalted Monk</option>
+        </select>
+        <select id="serviceiro" required>
+          <option value="">Serviceiro</option>
+        </select>
+      </div>
+      <!-- Campo fora do grid para não interferir no layout -->
+      <input type="text" id="huntCustom" placeholder="Descreva o hunt desejado" style="display:none;margin-top:8px;width:100%">
+      <div id="estimativaBox" style="display:none;margin-top:10px;padding:10px 14px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:8px;font-size:14px;color:#e8dfc0"></div>
+      <button type="submit">⚔️ Agendar</button>
     </form>
+    <div id="alternativasBox" style="display:none;max-width:560px;margin:12px auto 0;padding:14px 18px;background:rgba(76,175,110,0.08);border:1px solid rgba(76,175,110,0.3);border-radius:10px;font-size:14px;color:#cfe9d8"></div>
 
     <div id="calendar"></div>
+  </section>
+
+
+  <!-- ABA: Preços -->
+  <section id="tab-precos" class="tab-content">
+    <div class="section-header">
+      <h2>Tabela de Preços</h2>
+    </div>
+    <div class="precos-container">
+
+      <div class="preco-destaque">
+        <div class="preco-info">
+          <span class="preco-icon">💰</span>
+          <div>
+            <h3>Valor mínimo</h3>
+            <p id="precoNormal">R$ 20,00 / hora em dias normais</p>
+            <p id="precoEvento">R$ 25,00 / hora em dias de evento</p>
+          </div>
+        </div>
+        <div class="preco-obs">
+          <span>⚠️</span> Valores podem ser combinados diretamente com o serviceiro. Consulte a aba Contatos.
+        </div>
+      </div>
+
+      <div class="precos-tabela-wrap">
+        <table class="precos-tabela">
+          <thead>
+            <tr>
+              <th>Vocação</th>
+              <th>Dia Normal</th>
+              <th>Dia de Evento</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="voc-badge ms">🔥 Master Sorcerer</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge ed">🌿 Elder Druid</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge ek">🛡️ Elite Knight</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge rp">🏹 Royal Paladin</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+            <tr>
+              <td><span class="voc-badge em">☯️ Exalted Monk</span></td>
+              <td>R$ 20,00/h</td>
+              <td>R$ 25,00/h</td>
+              <td>A combinar</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pix-info">
+        <h3>💳 Pagamento via Pix</h3>
+        <p>Após o agendamento, o pagamento deve ser enviado via Pix ao serviceiro escolhido. Consulte a chave na aba <strong>Contatos</strong>.</p>
+        <p>Envie o comprovante e aguarde aprovação na aba <strong>Pagamentos</strong>.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ABA: Termos e Políticas -->
+  <section id="tab-termos" class="tab-content">
+    <div style="max-width:820px;margin:0 auto;padding:0 24px 60px">
+      <div class="section-header"><h2>📜 Termos de Uso e Políticas</h2></div>
+      <p style="font-size:12px;color:rgba(232,223,192,0.45);margin:-6px 0 20px">Última atualização: junho de 2026. Ao usar a plataforma, você concorda com os termos abaixo.</p>
+
+      <div class="termos-bloco">
+        <h3>1. Sobre a plataforma</h3>
+        <p>O Fatal Services é uma plataforma de intermediação que conecta jogadores (clientes) a prestadores de serviço (serviceiros) da guild FATAL no servidor RubinOT. A plataforma organiza agendamentos, registra o andamento dos serviços e facilita a comunicação entre as partes.</p>
+      </div>
+
+      <div class="termos-bloco">
+        <h3>2. Natureza do serviço</h3>
+        <p>Os serviços são prestados dentro do jogo e podem envolver pagamento em dinheiro real (via Pix) e/ou em moeda do jogo (gold, Tibia Coins ou equivalentes). Os valores são combinados entre cliente e serviceiro, respeitando os valores mínimos divulgados na aba Preços.</p>
+      </div>
+
+      <div class="termos-bloco termos-destaque">
+        <h3>3. Isenção de responsabilidade</h3>
+        <p>O uso da plataforma e a contratação de qualquer serviço se dão <b>por conta e risco exclusivo do cliente</b>. O Fatal Services, a guild FATAL e seus administradores <b>não se responsabilizam</b> por quaisquer perdas, danos ou prejuízos decorrentes do uso do serviço, incluindo, mas não se limitando a: perda de itens, equipamentos, personagens, moeda do jogo, experiência, ou valores em dinheiro real.</p>
+        <p>O cliente reconhece que o jogo é um ambiente sujeito a riscos próprios (bugs, quedas de servidor, ações de terceiros, regras da administração do RubinOT, entre outros) que estão fora do controle da plataforma.</p>
+      </div>
+
+      <div class="termos-bloco">
+        <h3>4. Compromisso de boa-fé</h3>
+        <p>Embora não assuma responsabilidade por perdas, o Fatal Services e os administradores da FATAL se comprometem a, dentro do possível, <b>auxiliar na apuração de qualquer ocorrência</b> — fornecendo logs, registros de agendamento e o que estiver ao seu alcance para ajudar a esclarecer os fatos. Esse auxílio é prestado em caráter colaborativo e não constitui assunção de responsabilidade.</p>
+      </div>
+
+      <div class="termos-bloco">
+        <h3>5. Conduta e confiança</h3>
+        <p>A plataforma trabalha com serviceiros de confiança vinculados à guild FATAL. Ainda assim, recomendamos que o cliente registre prints, combine os termos claramente antes de iniciar e mantenha a comunicação pelos canais oficiais. Comportamentos fraudulentos, de qualquer parte, podem resultar em banimento da plataforma.</p>
+      </div>
+
+      <div class="termos-bloco">
+        <h3>6. Pagamentos</h3>
+        <p>O pagamento é combinado e realizado diretamente entre cliente e serviceiro. O comprovante deve ser registrado na aba Pagamentos. A plataforma apenas registra e organiza essas informações, não atuando como intermediadora financeira nem retendo valores.</p>
+      </div>
+
+      <div class="termos-bloco">
+        <h3>7. Dados e privacidade</h3>
+        <p>Coletamos apenas os dados necessários para operar o serviço (nick, e-mail, agendamentos e comprovantes enviados). Esses dados são usados exclusivamente para a operação da plataforma e não são vendidos a terceiros.</p>
+      </div>
+
+      <div class="termos-bloco">
+        <h3>8. Alterações</h3>
+        <p>Estes termos podem ser atualizados a qualquer momento. O uso continuado da plataforma após mudanças implica concordância com os novos termos.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA: Contatos -->
+  <section id="tab-contatos" class="tab-content">
+    <div class="section-header">
+      <h2>Contatos dos Serviceiros</h2>
+      <button id="btnEditarContatos" class="btn-admin" style="display:none">✏️ Editar Contatos</button>
+    </div>
+    <div class="contatos-container">
+      <div id="tabelaContatos"></div>
+    </div>
+    <!-- Modal de edição -->
+    <div id="modalContato" class="modal" style="display:none">
+      <div class="modal-box">
+        <h3>Editar Contato</h3>
+        <input type="hidden" id="editNome">
+        <label>WhatsApp</label>
+        <input type="text" id="editWhats" placeholder="(11) 99999-9999">
+        <label>Pix</label>
+        <input type="text" id="editPix" placeholder="chave pix">
+        <label>Discord</label>
+        <input type="text" id="editDiscord" placeholder="usuario#0000">
+        <div class="modal-actions">
+          <button id="btnSalvarContato">Salvar</button>
+          <button id="btnFecharModal" class="btn-cancelar">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA: Pagamentos -->
+  <section id="tab-pagamentos" class="tab-content">
+    <div class="section-header">
+      <div>
+        <h2>Pagamentos</h2>
+        <p id="pgSubtitulo" style="margin:4px 0 0;font-size:13px;color:rgba(232,223,192,0.5)"></p>
+      </div>
+      <button id="btnNovoPagamento" class="btn-gold">+ Registrar Pagamento</button>
+    </div>
+
+    <div id="pgResumo" class="dash-grid" style="display:none;margin-bottom:18px"></div>
+
+    <!-- Formulário novo pagamento -->
+    <div id="formPagamento" class="pagamento-form" style="display:none">
+      <h3>Registrar Comprovante</h3>
+      <div class="form-grid">
+        <input type="text"   id="pgNome"       placeholder="Seu nome">
+        <select id="pgServiceiro">
+          <option value="">Selecione o serviceiro</option>
+        </select>
+        <input type="date"   id="pgData">
+        <input type="number" id="pgNumeroChamado" placeholder="Número do chamado (obrigatório, ex: 7)" min="1">
+        <input type="number" id="pgValor"          placeholder="Valor (R$)" step="0.01">
+        <input type="text"   id="pgObs"            placeholder="Observação (opcional)">
+      </div>
+      <p style="margin:8px 0 0;font-size:12px;color:rgba(232,223,192,0.5)">💡 O pagamento só pode ser enviado para um chamado já aceito pelo serviceiro.</p>
+      <div class="upload-area">
+        <label for="pgArquivo">📎 Comprovante Pix (imagem ou PDF)</label>
+        <input type="file" id="pgArquivo" accept="image/*,.pdf">
+        <div id="uploadPreview"></div>
+      </div>
+      <button id="btnEnviarPagamento">📤 Enviar para análise</button>
+    </div>
+
+    <!-- Listas -->
+    <div class="pagamentos-wrap">
+      <div class="pagamentos-col">
+        <h4 class="col-titulo analise">🕐 Em Análise</h4>
+        <div id="listaAnalise" class="pagamentos-lista"></div>
+      </div>
+      <div class="pagamentos-col">
+        <h4 class="col-titulo aprovado">✅ Aprovados</h4>
+        <div id="listaAprovados" class="pagamentos-lista"></div>
+      </div>
+      <div class="pagamentos-col">
+        <h4 class="col-titulo recusado">❌ Recusados</h4>
+        <div id="listaRecusados" class="pagamentos-lista"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA: Admin -->
+  <section id="tab-admin" class="tab-content">
+    <div class="admin-painel">
+      <h2 class="admin-titulo">⚙️ Painel Administrativo</h2>
+
+      <!-- ═══ OPERAÇÃO (uso diário) ═══ -->
+      <h3 class="admin-secao-divisor" style="color:var(--gold);font-family:Cinzel,serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin:8px 0 4px;opacity:0.75">🎯 Operação</h3>
+
+      <!-- Gestão de Agendamentos -->
+      <div class="admin-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <h3 style="margin:0">📋 Gestão de Agendamentos</h3>
+          <button id="btnArquivarMes" class="btn-admin" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.4);color:var(--gold);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer">📦 Arquivar serviços finalizados</button>
+        </div>
+        <div class="admin-ag-tabs">
+          <button class="admin-ag-tab active" data-ag-tab="pendente">⏳ Pendentes <span id="badgeAgendamentos"></span></button>
+          <button class="admin-ag-tab" data-ag-tab="aprovado">✅ Aprovados</button>
+          <button class="admin-ag-tab" data-ag-tab="em_andamento">⚔️ Em andamento</button>
+          <button class="admin-ag-tab" data-ag-tab="concluido">🏆 Concluídos</button>
+          <button class="admin-ag-tab" data-ag-tab="cancelado">🚫 Cancelados</button>
+          <button class="admin-ag-tab" data-ag-tab="recusado">❌ Recusados</button>
+          <button class="admin-ag-tab" data-ag-tab="expirado">⏰ Expirados</button>
+          <button class="admin-ag-tab" data-ag-tab="encerrado">🛑 Encerrados</button>
+          <button class="admin-ag-tab" data-ag-tab="todos">📋 Todos</button>
+        </div>
+        <div id="listaAgendamentosPendentes"></div>
+      </div>
+
+      <!-- Gestão de Usuários -->
+      <div class="admin-card" id="cardUsuarios">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h3 style="margin:0">👥 Gestão de Usuários</h3>
+          <button class="btn-admin-salvar" id="btnGerarConviteCliente">👤 Gerar convite cliente</button>
+          <button class="btn-admin-salvar" id="btnGerarConviteServiceiro" style="background:rgba(147,51,234,0.8)">🗡️ Gerar convite serviceiro</button>
+        </div>
+        <div class="admin-ag-tabs">
+          <button class="admin-ag-tab active" data-usr-tab="pendente">⏳ Pendentes</button>
+          <button class="admin-ag-tab" data-usr-tab="serviceiro">⚔️ Serviceiros</button>
+          <button class="admin-ag-tab" data-usr-tab="cliente">👤 Clientes</button>
+          <button class="admin-ag-tab" data-usr-tab="admin">🛡️ Admins</button>
+          <button class="admin-ag-tab" data-usr-tab="todos">📋 Todos</button>
+        </div>
+        <div id="listaUsuarios"></div>
+      </div>
+
+      <!-- ═══ CONFIGURAÇÕES (raramente alteradas) ═══ -->
+      <h3 class="admin-secao-divisor" style="color:var(--gold);font-family:Cinzel,serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;margin:24px 0 4px;opacity:0.75">⚙️ Configurações</h3>
+
+
+      <!-- Preços -->
+      <div class="admin-card">
+        <h3>💰 Tabela de Preços</h3>
+        <div class="admin-grid">
+          <div class="admin-field">
+            <label>Valor normal (R$/hora)</label>
+            <div class="admin-input-row">
+              <input type="number" id="cfgPrecoNormal" placeholder="Ex: 20" step="0.01" min="0">
+              <button class="btn-admin-salvar" id="btnSalvarPrecos">Salvar</button>
+            </div>
+          </div>
+          <div class="admin-field">
+            <label>Valor evento (R$/hora)</label>
+            <input type="number" id="cfgPrecoEvento" placeholder="Ex: 25" step="0.01" min="0">
+          </div>
+          <div class="admin-field" style="grid-column: 1/-1">
+            <label>Observação</label>
+            <input type="text" id="cfgPrecoObs" placeholder="Ex: Valores podem ser combinados com o serviceiro.">
+          </div>
+          <div class="admin-field" style="grid-column: 1/-1">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:rgba(224,162,58,0.08);border:1px solid rgba(224,162,58,0.3);border-radius:8px">
+              <input type="checkbox" id="cfgModoEvento" style="width:auto;margin:0">
+              <span style="text-transform:none;letter-spacing:0">🎉 <b>Modo evento ativo</b> — quando ligado, todos os agendamentos passam a usar o valor de dia de evento, com aviso visível para todos.</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hunts -->
+      <div class="admin-card">
+        <h3>🗺️ Hunts Disponíveis</h3>
+        <div id="listaHunts" class="admin-tags"></div>
+        <div class="admin-input-row" style="margin-top:12px">
+          <input type="text" id="cfgNovaHunt" placeholder="Nome da nova hunt">
+          <button class="btn-admin-salvar" id="btnAdicionarHunt">+ Adicionar</button>
+        </div>
+      </div>
+
+      <!-- Serviceiros -->
+      <div class="admin-card">
+        <h3>⚔️ Serviceiros por Vocação</h3>
+        <div class="admin-field" style="margin-bottom:12px">
+          <label>Vocação</label>
+          <select id="cfgVocacaoSel">
+            <option value="Master Sorcerer">Master Sorcerer</option>
+            <option value="Elder Druid">Elder Druid</option>
+            <option value="Elite Knight">Elite Knight</option>
+            <option value="Royal Paladin">Royal Paladin</option>
+            <option value="Exalted Monk">Exalted Monk</option>
+          </select>
+        </div>
+        <div id="listaServiceirosAdmin" class="admin-tags"></div>
+        <div class="admin-input-row" style="margin-top:12px">
+          <input type="text" id="cfgNovoServiceiro" placeholder="Nome do novo serviceiro">
+          <button class="btn-admin-salvar" id="btnAdicionarServiceiro">+ Adicionar</button>
+        </div>
+      </div>
+
+      <!-- Horários dos Serviceiros -->
+      <div class="admin-card">
+        <h3>🕐 Horários dos Serviceiros</h3>
+        <div class="admin-grid" style="margin-bottom:14px">
+          <div class="admin-field">
+            <label>Serviceiro</label>
+            <select id="cfgHorarioServiceiro">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label>Dia da semana</label>
+            <select id="cfgHorarioDia">
+              <option value="Todos os dias">Todos os dias</option>
+              <option value="Segunda">Segunda</option>
+              <option value="Terça">Terça</option>
+              <option value="Quarta">Quarta</option>
+              <option value="Quinta">Quinta</option>
+              <option value="Sexta">Sexta</option>
+              <option value="Sábado">Sábado</option>
+              <option value="Domingo">Domingo</option>
+            </select>
+          </div>
+          <div class="admin-field">
+            <label>Hora início</label>
+            <input type="time" id="cfgHorarioInicio">
+          </div>
+          <div class="admin-field">
+            <label>Hora fim</label>
+            <input type="time" id="cfgHorarioFim">
+          </div>
+        </div>
+        <div class="admin-input-row" style="margin-bottom:16px">
+          <button class="btn-admin-salvar" id="btnAdicionarHorario">+ Adicionar horário</button>
+        </div>
+        <div id="listaHorariosAdmin"></div>
+      </div>
+
+      <!-- Permissões por Role -->
+      <div class="admin-card">
+        <h3>🔐 Permissões por Role</h3>
+        <div class="admin-ag-tabs" style="margin-bottom:16px">
+          <button class="perm-tab active" data-perm-role="cliente">👤 Cliente</button>
+          <button class="perm-tab" data-perm-role="serviceiro">🗡️ Serviceiro</button>
+        </div>
+        <div id="painelPermissoes"></div>
+        <button class="btn-admin-salvar" id="btnSalvarPermissoes" style="margin-top:14px">💾 Salvar permissões</button>
+      </div>
+
+      <!-- Sugestões no painel admin -->
+      <div class="admin-card" id="cardSugestoes">
+        <h3>💬 Sugestões Recebidas <span id="badgeSugestoes"></span></h3>
+        <div id="listaSugestoesAdmin">
+          <p style="color:rgba(232,223,192,0.4);font-size:13px">Carregando...</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ABA: Dashboard -->
+  <section id="tab-dashboard" class="tab-content">
+    <div class="section-header">
+      <h2>📊 Estatísticas</h2>
+    </div>
+    <div id="dashboardContent" style="max-width:1100px;margin:0 auto 40px;padding:0 24px">
+      <div id="dashMetricas" class="dash-grid"></div>
+
+      <!-- Gráficos -->
+      <div class="dash-cols">
+        <div class="admin-card">
+          <h3>📊 Distribuição de status</h3>
+          <div style="position:relative;height:260px"><canvas id="dashChartStatus"></canvas></div>
+        </div>
+        <div class="admin-card">
+          <h3>⚔️ Vocações mais procuradas</h3>
+          <div id="dashVocacoes"></div>
+        </div>
+      </div>
+
+      <!-- Rankings de serviceiros lado a lado -->
+      <div class="dash-cols">
+        <div class="admin-card">
+          <h3>🏆 Top por serviços</h3>
+          <div id="dashTopServiceiros"></div>
+        </div>
+        <div class="admin-card">
+          <h3>⭐ Top por nota média</h3>
+          <div id="dashTopNotas"></div>
+        </div>
+      </div>
+
+      <!-- Avaliações recentes -->
+      <div class="admin-card" style="margin-top:18px">
+        <h3>⭐ Avaliações Recentes</h3>
+        <div id="dashAvaliacoes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA: Painel Serviceiro -->
+  <section id="tab-serviceiro-painel" class="tab-content">
+    <div class="section-header">
+      <h2>⚔️ Meus Agendamentos</h2>
+    </div>
+    <div style="max-width:900px;margin:0 auto;padding:0 24px">
+      <div id="avisoVinculoServ" style="display:none;background:rgba(240,192,64,0.12);border:1px solid rgba(240,192,64,0.4);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#f0c040;font-size:13px">
+        ⚠️ Sua conta ainda não foi vinculada a um serviceiro da lista. Peça ao admin para vincular em <b>Gestão de Usuários</b>, senão seus chamados podem não aparecer aqui.
+      </div>
+      <div class="admin-card">
+        <div class="admin-ag-tabs" style="margin-bottom:16px">
+          <button class="srv-ag-tab active" data-srv-tab="pendente">⏳ Pendentes</button>
+          <button class="srv-ag-tab" data-srv-tab="aprovado">✅ Aprovados</button>
+          <button class="srv-ag-tab" data-srv-tab="em_andamento">⚔️ Em andamento</button>
+          <button class="srv-ag-tab" data-srv-tab="concluido">🏆 Concluídos</button>
+          <button class="srv-ag-tab" data-srv-tab="cancelado">🚫 Cancelados</button>
+          <button class="srv-ag-tab" data-srv-tab="recusado">❌ Recusados</button>
+          <button class="srv-ag-tab" data-srv-tab="expirado">⏰ Expirados</button>
+          <button class="srv-ag-tab" data-srv-tab="encerrado">🛑 Encerrados</button>
+        </div>
+        <div class="srv-filtros">
+          <input type="text" id="srvFiltroCliente" placeholder="🔍 Buscar por cliente...">
+          <input type="date" id="srvFiltroData" title="Filtrar por dia">
+          <select id="srvFiltroOrdem">
+            <option value="chamado_desc">Nº chamado (maior→menor)</option>
+            <option value="chamado_asc">Nº chamado (menor→maior)</option>
+            <option value="data_desc">Data (mais recente)</option>
+            <option value="data_asc">Data (mais antiga)</option>
+            <option value="cliente">Nome do cliente (A→Z)</option>
+          </select>
+          <button id="srvLimparFiltros" type="button" title="Limpar filtros">✖️</button>
+        </div>
+        <div id="listaMeusAgendamentos"></div>
+      </div>
+
+      <!-- Minha Produção: horas trabalhadas por cliente -->
+      <div class="admin-card" style="margin-top:18px">
+        <h3>📊 Minha Produção</h3>
+        <div id="srvResumoHoras" class="dash-grid" style="margin-bottom:16px"></div>
+        <div id="srvProducaoClientes"></div>
+      </div>
+
+      <!-- Meus Horários: disponibilidade do próprio serviceiro -->
+      <div class="admin-card" style="margin-top:18px">
+        <h3>🕐 Meus Horários de Disponibilidade</h3>
+        <p style="font-size:12px;color:rgba(232,223,192,0.5);margin:-4px 0 14px">Defina os dias e horários em que você está disponível para serviços. Os clientes só conseguem agendar dentro da sua disponibilidade.</p>
+        <div class="admin-input-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1 1 160px">
+            <label style="font-size:11px;color:rgba(232,223,192,0.6);font-family:Cinzel,serif;display:block;margin-bottom:4px">Dia da semana</label>
+            <select id="srvHorarioDia" style="width:100%">
+              <option value="Todos os dias">Todos os dias</option>
+              <option value="Domingo">Domingo</option>
+              <option value="Segunda">Segunda</option>
+              <option value="Terça">Terça</option>
+              <option value="Quarta">Quarta</option>
+              <option value="Quinta">Quinta</option>
+              <option value="Sexta">Sexta</option>
+              <option value="Sábado">Sábado</option>
+            </select>
+          </div>
+          <div style="flex:0 1 120px">
+            <label style="font-size:11px;color:rgba(232,223,192,0.6);font-family:Cinzel,serif;display:block;margin-bottom:4px">Hora início</label>
+            <input type="time" id="srvHorarioInicio" style="width:100%">
+          </div>
+          <div style="flex:0 1 120px">
+            <label style="font-size:11px;color:rgba(232,223,192,0.6);font-family:Cinzel,serif;display:block;margin-bottom:4px">Hora fim</label>
+            <input type="time" id="srvHorarioFim" style="width:100%">
+          </div>
+          <button class="btn-admin-salvar" id="btnSrvAddHorario" style="flex:0 0 auto">+ Adicionar</button>
+        </div>
+        <div id="srvListaHorarios" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABA: Histórico -->
+  <section id="tab-historico" class="tab-content">
+    <div class="section-header">
+      <h2>Histórico de Serviços</h2>
+      <div class="historico-filtros">
+        <input type="number" id="filtroChamado"      placeholder="🔍 Chamado #" min="1" style="width:140px">
+        <input type="text"   id="filtroNomeHistorico" placeholder="🔍 Buscar por nick">
+        <select id="filtroStatusHistorico">
+          <option value="todos">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="aprovado">Aprovado</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="encerrado">Encerrado</option>
+          <option value="cancelado">Cancelado</option>
+          <option value="expirado">Expirado</option>
+          <option value="recusado">Recusado</option>
+        </select>
+        <select id="filtroServiceiroHistorico">
+          <option value="todos">Todos os serviceiros</option>
+        </select>
+      </div>
+    </div>
+    <div id="listaHistorico" class="historico-lista"></div>
+  </section>
+
+  <!-- Botão flutuante de FAQ/Sugestões -->
+  <button id="btnFaq" title="FAQ e Sugestões">💬</button>
+
+  <!-- Modal FAQ/Sugestões -->
+  <div id="modalFaq" class="modal" style="display:none">
+    <div class="modal-box faq-box">
+      <div class="faq-header">
+        <h3>💬 FAQ & Sugestões</h3>
+        <button id="btnFecharFaq" class="faq-fechar">×</button>
+      </div>
+
+      <!-- Abas internas -->
+      <div class="faq-tabs">
+        <button class="faq-tab active" data-faq="perguntas">❓ Perguntas Frequentes</button>
+        <button class="faq-tab" data-faq="sugestao">✉️ Enviar Sugestão</button>
+      </div>
+
+      <!-- FAQ -->
+      <div id="faq-perguntas" class="faq-content active">
+        <div class="faq-item">
+          <button class="faq-pergunta">Como faço para agendar um serviço?</button>
+          <div class="faq-resposta">Faça login com a senha de cliente, vá até a aba <strong>Agenda</strong>, preencha todos os campos e clique em Agendar. Certifique-se de escolher um horário dentro da disponibilidade do serviceiro.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Quanto custa o serviço?</button>
+          <div class="faq-resposta">O valor mínimo é <strong>R$20/hora</strong> em dias normais e <strong>R$25/hora</strong> em dias de evento. Os valores podem ser combinados diretamente com o serviceiro.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Como faço o pagamento?</button>
+          <div class="faq-resposta">O pagamento é feito via <strong>Pix</strong> diretamente para o serviceiro. Após pagar, vá até a aba <strong>Pagamentos</strong>, registre o comprovante e aguarde a aprovação do admin.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Como vejo o contato dos serviceiros?</button>
+          <div class="faq-resposta">Faça login com a senha de cliente e acesse a aba <strong>Contatos</strong>. Lá você encontra WhatsApp, Pix e Discord de cada serviceiro.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">O que acontece se o horário estiver ocupado?</button>
+          <div class="faq-resposta">O sistema bloqueia automaticamente horários já agendados. Você pode ver na aba <strong>Serviceiros</strong> os horários disponíveis de cada um e os agendamentos existentes no calendário.</div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-pergunta">Posso cancelar um agendamento?</button>
+          <div class="faq-resposta">Apenas o admin pode cancelar agendamentos. Entre em contato com um dos serviceiros via WhatsApp ou Discord para solicitar o cancelamento.</div>
+        </div>
+      </div>
+
+      <!-- Sugestão -->
+      <div id="faq-sugestao" class="faq-content">
+        <p class="faq-intro">Tem uma ideia para melhorar o site ou o serviço? Manda pra gente!</p>
+        <div class="faq-form">
+          <input type="text" id="sugNome" placeholder="Seu nick (ex: Fear Popstar)" autocomplete="off">
+          <textarea id="sugMensagem" placeholder="Descreva sua sugestão..." rows="4"></textarea>
+          <button id="btnEnviarSugestao">📤 Enviar sugestão</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- JavaScript do projeto (sempre no final do body) -->
-  <script src="js/script.js"></script>
+  <!-- Modal de Autenticação -->
+  <div id="modalAuth" style="display:none">
+    <div class="auth-box">
+      <div class="auth-logo">⚔️ <span>Fatal Services</span></div>
 
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth="login">Entrar</button>
+        <button class="auth-tab" data-auth="cadastro">Criar conta</button>
+      </div>
+
+      <!-- Login -->
+      <div id="auth-login" class="auth-content active">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="seu@email.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label>Senha</label>
+          <input type="password" id="loginSenha" placeholder="Sua senha" autocomplete="current-password">
+        </div>
+        <button id="btnLogin">⚔️ Entrar</button>
+        <p id="loginErro" class="auth-erro"></p>
+        <button id="btnEsqueceuSenha" style="background:none;border:none;color:rgba(201,168,76,0.6);font-size:12px;cursor:pointer;width:auto;padding:0;margin-top:4px;text-decoration:underline;text-underline-offset:3px">Esqueceu a senha?</button>
+      </div>
+
+      <!-- Cadastro -->
+      <div id="auth-cadastro" class="auth-content">
+        <div class="auth-field">
+          <label>Nick no jogo</label>
+          <input type="text" id="cadNick" placeholder="Ex: Fear Popstar" autocomplete="off">
+        </div>
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="cadEmail" placeholder="seu@email.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label>Senha</label>
+          <input type="password" id="cadSenha" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+        </div>
+        <div class="auth-field">
+          <label>Código de convite</label>
+          <input type="text" id="cadConvite" placeholder="Código fornecido pelo admin" autocomplete="off">
+          <span id="cadConviteTipo" style="font-size:11px;font-family:Cinzel,serif;color:rgba(232,223,192,0.5);margin-top:4px;min-height:16px;display:block"></span>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:rgba(232,223,192,0.7);margin:4px 0 12px;cursor:pointer;font-family:inherit;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="cadAceiteTermos" style="margin-top:2px;width:auto;flex:0 0 auto">
+          <span>Li e concordo com os <a href="#" id="linkTermosCadastro" style="color:var(--gold)">Termos de Uso e Políticas</a>, incluindo a isenção de responsabilidade por perdas no jogo.</span>
+        </label>
+        <button id="btnCadastro">📝 Criar conta</button>
+        <p id="cadErro" class="auth-erro"></p>
+        <p style="font-size:11px;color:rgba(232,223,192,0.4);text-align:center;margin-top:8px;line-height:1.5">⏳ Por segurança, poucas contas podem ser criadas por hora. Se aparecer aviso de limite, aguarde ~1h ou fale com um admin.</p>
+      </div>
+
+      <button id="btnFecharAuth" class="auth-fechar">×</button>
+    </div>
+  </div>
+
+  <script src="js/script.js"></script>
 </body>
 </html>
